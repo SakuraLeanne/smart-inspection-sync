@@ -13,9 +13,12 @@ public class SyncTaskProperties {
     public static class FullInit {
         private boolean enabled = false;
         private boolean truncateBeforeRun = false;
+        private boolean failFast = false;
         public boolean isEnabled() { return enabled; }
         public void setEnabled(boolean enabled) { this.enabled = enabled; }
         public boolean isTruncateBeforeRun() { return truncateBeforeRun; }
         public void setTruncateBeforeRun(boolean truncateBeforeRun) { this.truncateBeforeRun = truncateBeforeRun; }
+        public boolean isFailFast() { return failFast; }
+        public void setFailFast(boolean failFast) { this.failFast = failFast; }
     }
 }

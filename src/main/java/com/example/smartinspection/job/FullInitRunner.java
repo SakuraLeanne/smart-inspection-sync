@@ -32,13 +32,21 @@ public class FullInitRunner implements CommandLineRunner {
             return;
         }
         log.info("[FULL-INIT] Start full init process");
-        if (properties.getFullInit().isTruncateBeforeRun()) {
-            log.warn("[FULL-INIT] truncate raw tables before run");
-            adminService.truncateRawTables();
+        try {
+            if (properties.getFullInit().isTruncateBeforeRun()) {
+                log.warn("[FULL-INIT] truncate raw tables before run");
+                adminService.truncateRawTables();
+            }
+            adminService.resetIncrementCheckpoint();
+            customerServiceSyncService.syncNew();
+            historySyncService.syncNew();
+            log.info("[FULL-INIT] Done");
+        } catch (Exception ex) {
+            log.error("[FULL-INIT] Failed: {}", ex.getMessage(), ex);
+            if (properties.getFullInit().isFailFast()) {
+                throw ex;
+            }
+            log.warn("[FULL-INIT] fail-fast disabled, application will continue startup.");
         }
-        adminService.resetIncrementCheckpoint();
-        customerServiceSyncService.syncNew();
-        historySyncService.syncNew();
-        log.info("[FULL-INIT] Done");
     }
 }

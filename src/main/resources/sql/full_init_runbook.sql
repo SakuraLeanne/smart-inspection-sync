@@ -17,3 +17,6 @@ SELECT id, task_code, sync_type, status, read_count, write_count, start_time, en
 FROM ic_sync_task_log
 ORDER BY id DESC
 LIMIT 20;
+
+-- 5) 如希望连接异常时直接启动失败（用于CI/发布门禁），增加参数
+-- java -jar app.jar --sync.full-init.enabled=true --sync.full-init.fail-fast=true

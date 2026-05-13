@@ -29,7 +29,10 @@ sync:
   full-init:
     enabled: false
     truncate-before-run: false
+    fail-fast: false
 
 # 首次全量示例
 # java -jar app.jar --sync.full-init.enabled=true
 # java -jar app.jar --sync.full-init.enabled=true --sync.full-init.truncate-before-run=true
+# 若数据库暂不可达，是否阻断应用启动（默认 false）
+# --sync.full-init.fail-fast=true
