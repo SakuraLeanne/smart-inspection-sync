@@ -1,0 +1,21 @@
+package com.example.smartinspection.repository;
+
+import com.example.smartinspection.domain.CustomerServiceRow;
+import com.example.smartinspection.service.SyncDateConvertService;
+import java.util.List;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class SqlServerCustomerServiceReader {
+    private final JdbcTemplate sqlServerJdbcTemplate; private final SyncDateConvertService convertService;
+    public SqlServerCustomerServiceReader(JdbcTemplate sqlServerJdbcTemplate, SyncDateConvertService convertService) { this.sqlServerJdbcTemplate = sqlServerJdbcTemplate; this.convertService = convertService; }
+    public List<CustomerServiceRow> readNewById(int lastMaxId, int limit) {
+        String sql = "SELECT TOP (?) * FROM dbo.CustomerService WHERE Id > ? ORDER BY Id ASC";
+        return sqlServerJdbcTemplate.query(sql, (rs, rn) -> MapperUtils.mapCustomerService(rs, convertService), limit, lastMaxId);
+    }
+    public List<CustomerServiceRow> readRecent(int days, int offset, int limit) {
+        String sql = "SELECT * FROM dbo.CustomerService WHERE AcceptedDate >= DATEADD(day, -?, GETDATE()) ORDER BY Id ASC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+        return sqlServerJdbcTemplate.query(sql, (rs, rn) -> MapperUtils.mapCustomerService(rs, convertService), days, offset, limit);
+    }
+}
