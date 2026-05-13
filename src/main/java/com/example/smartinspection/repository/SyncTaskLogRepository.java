@@ -1,13 +1,14 @@
 package com.example.smartinspection.repository;
 
 import java.time.LocalDateTime;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class SyncTaskLogRepository {
-    private final JdbcTemplate mysqlJdbcTemplate;
-    public SyncTaskLogRepository(JdbcTemplate mysqlJdbcTemplate) { this.mysqlJdbcTemplate = mysqlJdbcTemplate; }
+    private final @Qualifier("mysqlJdbcTemplate") JdbcTemplate mysqlJdbcTemplate;
+    public SyncTaskLogRepository(@Qualifier("mysqlJdbcTemplate") JdbcTemplate mysqlJdbcTemplate) { this.mysqlJdbcTemplate = mysqlJdbcTemplate; }
     public long start(String taskCode,String batchNo,String syncType){
         mysqlJdbcTemplate.update("INSERT INTO ic_sync_task_log(task_code,sync_batch_no,sync_type,start_time,status,read_count,write_count) VALUES(?,?,?,?, 'RUNNING',0,0)",taskCode,batchNo,syncType,java.sql.Timestamp.valueOf(LocalDateTime.now()));
         return mysqlJdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);

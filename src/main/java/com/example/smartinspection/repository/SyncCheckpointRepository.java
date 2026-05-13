@@ -1,13 +1,14 @@
 package com.example.smartinspection.repository;
 
 import java.time.LocalDateTime;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class SyncCheckpointRepository {
-    private final JdbcTemplate mysqlJdbcTemplate;
-    public SyncCheckpointRepository(JdbcTemplate mysqlJdbcTemplate) { this.mysqlJdbcTemplate = mysqlJdbcTemplate; }
+    private final @Qualifier("mysqlJdbcTemplate") JdbcTemplate mysqlJdbcTemplate;
+    public SyncCheckpointRepository(@Qualifier("mysqlJdbcTemplate") JdbcTemplate mysqlJdbcTemplate) { this.mysqlJdbcTemplate = mysqlJdbcTemplate; }
     public int getLastMaxId(String taskCode) {
         Integer val = mysqlJdbcTemplate.query("SELECT last_max_id FROM ic_sync_task_checkpoint WHERE task_code=?", rs -> rs.next()?rs.getInt(1):0, taskCode);
         return val == null ? 0 : val;

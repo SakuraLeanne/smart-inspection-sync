@@ -25,3 +25,11 @@ sync:
     customer-service-history-recent: "0 0 2 ? * MON"
   sqlserver:
     use-row-number-pagination: false
+
+  full-init:
+    enabled: false
+    truncate-before-run: false
+
+# 首次全量示例
+# java -jar app.jar --sync.full-init.enabled=true
+# java -jar app.jar --sync.full-init.enabled=true --sync.full-init.truncate-before-run=true
