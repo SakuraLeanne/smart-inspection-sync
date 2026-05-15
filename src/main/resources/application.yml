@@ -1,0 +1,38 @@
+spring:
+  datasource:
+    sqlserver:
+      driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+      url: jdbc:sqlserver://127.0.0.1:1433;databaseName=PropertyDB;encrypt=false
+      username: ${SQLSERVER_USERNAME:sa}
+      password: ${SQLSERVER_PASSWORD:change_me}
+    mysql:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://127.0.0.1:3306/portal?useUnicode=true&characterEncoding=utf8mb4&useSSL=false&serverTimezone=Asia/Shanghai
+      username: ${MYSQL_USERNAME:root}
+      password: ${MYSQL_PASSWORD:change_me}
+
+sync:
+  batch-size:
+    customer-service: 3000
+    customer-service-history: 5000
+  recent-refresh-days:
+    customer-service: 90
+    customer-service-history: 7
+  schedule:
+    customer-service-new: "0 0 1 ? * MON"
+    customer-service-history-new: "0 20 1 ? * MON"
+    customer-service-recent: "0 40 1 ? * MON"
+    customer-service-history-recent: "0 0 2 ? * MON"
+  sqlserver:
+    use-row-number-pagination: false
+
+  full-init:
+    enabled: false
+    truncate-before-run: false
+    fail-fast: false
+
+# 首次全量示例
+# java -jar app.jar --sync.full-init.enabled=true
+# java -jar app.jar --sync.full-init.enabled=true --sync.full-init.truncate-before-run=true
+# 若数据库暂不可达，是否阻断应用启动（默认 false）
+# --sync.full-init.fail-fast=true
