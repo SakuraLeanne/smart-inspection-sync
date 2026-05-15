@@ -1,5 +1,10 @@
 SET SESSION group_concat_max_len = 10240;
 
+/*
+兼容说明：当前部分环境的 cus_raw_customer_service 为精简版字段集，
+不存在 organization_item_id/place/address/customer_id/appointment_time/dispatch_time 等列。
+本脚本按“精简字段可运行”实现：缺失字段先置 NULL，后续可通过补齐 raw 表结构升级。
+*/
 INSERT INTO cus_std_work_order (
   source_system, source_order_id, order_no, project_id, project_name, location_id, location_name, location_text,
   customer_id, report_person, phone, service_source, service_source_name, service_type, service_type_name,
@@ -11,16 +16,14 @@ INSERT INTO cus_std_work_order (
   last_word_content, is_repair_order, is_closed, is_finished, is_valid, raw_sync_time
 )
 SELECT
-  'property', cs.source_id, cs.voucher_no, cs.region_id, NULL, cs.organization_item_id, NULL,
-  COALESCE(NULLIF(TRIM(cs.place), ''), NULLIF(TRIM(cs.address), '')),
-  cs.customer_id, cs.customer_name, cs.phone, cs.service_source,
+  'property', cs.source_id, cs.voucher_no, cs.region_id, NULL, NULL, NULL, NULL,
+  NULL, cs.customer_name, cs.phone, cs.service_source,
   CASE WHEN cs.service_source = 1 THEN '自检自查' ELSE CONCAT('来源-', IFNULL(cs.service_source, 'NULL')) END,
   cs.service_type, CASE WHEN cs.service_type = 0 THEN '报修' ELSE CONCAT('服务类型-', IFNULL(cs.service_type, 'NULL')) END,
-  cs.repair_status,
-  CASE cs.repair_status WHEN 1 THEN '已分配' WHEN 3 THEN '已处理' WHEN 5 THEN '已关闭' ELSE CONCAT('状态-', IFNULL(cs.repair_status, 'NULL')) END,
-  cs.dispatch_type_id, NULL, NULL, NULL, cs.dispatch_priority_id, NULL,
-  cs.accepted_date, cs.accepted_date, cs.appointment_time, cs.finish_time_required, cs.dispatch_time,
-  cs.start_process_time, cs.dispatch_finish_time, cs.confirm_time,
+  NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL,
+  cs.accepted_date, cs.accepted_date, NULL, cs.finish_time_required, NULL,
+  NULL, NULL, cs.confirm_time,
   cs.details,
   CASE
     WHEN cs.details LIKE '%漏水%' THEN '漏水'
@@ -42,12 +45,12 @@ SELECT
   TRIM(cs.details),
   cs.comment,
   CASE cs.comment WHEN 0 THEN '好评' WHEN 1 THEN '中评' WHEN 2 THEN '差评' ELSE NULL END,
-  cs.comment_content, cs.comment_date, IFNULL(cs.comment_by_customer, 0),
+  cs.comment_content, NULL, 0,
   CASE WHEN hs.history_count > 0 THEN 1 ELSE 0 END,
   IFNULL(hs.history_count, 0), hs.last_history_time, hs.last_history_content, hs.last_word_content,
   CASE WHEN cs.service_type = 0 THEN 1 ELSE 0 END,
-  CASE WHEN cs.repair_status = 5 THEN 1 ELSE 0 END,
-  CASE WHEN cs.repair_status IN (3, 5) THEN 1 ELSE 0 END,
+  0,
+  CASE WHEN hs.history_count > 0 THEN 1 ELSE 0 END,
   1, cs.sync_time
 FROM cus_raw_customer_service cs
 LEFT JOIN (
