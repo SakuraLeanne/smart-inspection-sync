@@ -10,9 +10,9 @@ INSERT INTO cus_model_repeat_repair_result (
 SELECT
   @model_batch_no,
   t.project_id,
-  t.project_name,
+  MAX(t.project_name) AS project_name,
   t.location_key,
-  t.location_name,
+  MAX(t.location_name) AS location_name,
   t.dispatch_type_name,
   t.dispatch_type_parent_name,
   t.content_keyword,
