@@ -10,12 +10,12 @@ public class SyncAdminService {
     public SyncAdminService(@Qualifier("mysqlJdbcTemplate") JdbcTemplate mysqlJdbcTemplate) { this.mysqlJdbcTemplate = mysqlJdbcTemplate; }
 
     public void resetIncrementCheckpoint() {
-        mysqlJdbcTemplate.update("DELETE FROM ic_sync_task_checkpoint WHERE task_code IN (?,?)",
+        mysqlJdbcTemplate.update("DELETE FROM cus_sync_task_checkpoint WHERE task_code IN (?,?)",
             "sync_customer_service_new", "sync_customer_service_history_new");
     }
 
     public void truncateRawTables() {
-        mysqlJdbcTemplate.execute("TRUNCATE TABLE ic_raw_customer_service_history");
-        mysqlJdbcTemplate.execute("TRUNCATE TABLE ic_raw_customer_service");
+        mysqlJdbcTemplate.execute("TRUNCATE TABLE cus_raw_customer_service_history");
+        mysqlJdbcTemplate.execute("TRUNCATE TABLE cus_raw_customer_service");
     }
 }
