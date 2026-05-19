@@ -19,7 +19,7 @@ public class CustomerServiceSyncJob {
      * 说明：该任务会更新 cus_sync_task_checkpoint 中的 last_max_id。
      * Cron 来源：sync.schedule.customer-service-new
      */
-    @Scheduled(cron = "${sync.schedule.customer-service-new}")
+//    @Scheduled(cron = "${sync.schedule.customer-service-new}")
     public void syncCustomerServiceNew(){ customerServiceSyncService.syncNew(); }
     /**
      * 增量同步工单处理记录表（raw 层）。
@@ -29,7 +29,7 @@ public class CustomerServiceSyncJob {
      * 说明：该任务会更新 cus_sync_task_checkpoint 中的 last_max_id。
      * Cron 来源：sync.schedule.customer-service-history-new
      */
-    @Scheduled(cron = "${sync.schedule.customer-service-history-new}")
+//    @Scheduled(cron = "${sync.schedule.customer-service-history-new}")
     public void syncCustomerServiceHistoryNew(){ historySyncService.syncNew(); }
     /**
      * 滚动刷新近 N 天工单主表（raw 层）。
@@ -39,7 +39,7 @@ public class CustomerServiceSyncJob {
      * 说明：该任务不推进 Id 断点，仅记录同步日志。
      * Cron 来源：sync.schedule.customer-service-recent
      */
-    @Scheduled(cron = "${sync.schedule.customer-service-recent}")
+//    @Scheduled(cron = "${sync.schedule.customer-service-recent}")
     public void refreshCustomerServiceRecent(){ customerServiceSyncService.refreshRecent(); }
     /**
      * 滚动刷新近 N 天工单处理记录（raw 层）。
@@ -49,6 +49,6 @@ public class CustomerServiceSyncJob {
      * 说明：该任务不推进 Id 断点，仅记录同步日志。
      * Cron 来源：sync.schedule.customer-service-history-recent
      */
-    @Scheduled(cron = "${sync.schedule.customer-service-history-recent}")
+//    @Scheduled(cron = "${sync.schedule.customer-service-history-recent}")
     public void refreshCustomerServiceHistoryRecent(){ historySyncService.refreshRecent(); }
 }

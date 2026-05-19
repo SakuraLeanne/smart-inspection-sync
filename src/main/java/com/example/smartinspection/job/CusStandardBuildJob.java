@@ -33,7 +33,7 @@ public class CusStandardBuildJob {
      * 当前 Cron：每天 01:30（0 30 1 * * ?）。
      * 如需与 raw 同步解耦，可改为两个任务：01:30 构建标准表，02:00 计算模型。
      */
-    @Scheduled(cron = "0 30 1 * * ?")
+//    @Scheduled(cron = "0 30 1 * * ?")
     public void buildAndCalculate() {
         standardTableBuildService.buildStdWorkOrderHistory();
         standardTableBuildService.buildStdWorkOrder();
