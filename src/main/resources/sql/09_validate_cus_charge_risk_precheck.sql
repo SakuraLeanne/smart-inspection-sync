@@ -27,6 +27,8 @@ SELECT
     WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='arrear_principal') THEN 'arrear_principal'
     WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='arrear_amount') THEN 'arrear_amount'
     WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='owing_amount') THEN 'owing_amount'
+    WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='unpaid_amount') THEN 'unpaid_amount'
+    WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='debt_amount') THEN 'debt_amount'
     WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='receivable_principal') THEN 'receivable_principal - received*'
     WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='receivable_amount') THEN 'receivable_amount - received*'
     ELSE 'NOT_FOUND' END AS arrear_logic_field,
@@ -35,6 +37,7 @@ SELECT
     WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='discount_amount') THEN 'discount_amount'
     WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='derate_amount') THEN 'derate_amount'
     WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='waiver_amount') THEN 'waiver_amount'
+    WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='minus_amount') THEN 'minus_amount'
     ELSE 'NOT_FOUND' END AS reduction_field;
 
 -- 3) 预计入数（欠费）

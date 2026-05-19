@@ -1,17 +1,16 @@
 -- ============================================================
 -- 文件: 08_calculate_cus_charge_risk_model.sql
 -- 目标: 兼容多种 raw 字段命名，稳定产出标准层与模型层
+-- 本版增强: 解决“标准表0行”问题，扩大金额字段候选并兼容负数减免
 -- ============================================================
 SET @model_batch_no = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s');
 SET @schema_name = DATABASE();
 
--- 主键字段兼容：id/source_id
 SET @c_id = (SELECT CASE
   WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='id') THEN 'r.id'
   WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='source_id') THEN 'r.source_id'
   ELSE '0' END);
 
--- 维度字段兼容
 SET @c_project_id = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='project_id') THEN 'r.project_id' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='region_id') THEN 'r.region_id' ELSE 'NULL' END);
 SET @c_project_name = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='project_name') THEN 'r.project_name' ELSE 'NULL' END);
 SET @c_customer_id = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='customer_id') THEN 'r.customer_id' ELSE 'NULL' END);
@@ -20,25 +19,32 @@ SET @c_room_id = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.colum
 SET @c_room_name = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='room_name') THEN 'r.room_name' ELSE 'NULL' END);
 SET @c_bill_no = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='bill_no') THEN 'r.bill_no' ELSE 'NULL' END);
 SET @c_fee_item_name = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='fee_item_name') THEN 'r.fee_item_name' ELSE 'NULL' END);
-
--- 日期字段兼容
 SET @c_bill_date = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='bill_date') THEN 'r.bill_date' ELSE 'NULL' END);
-SET @c_due_date = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='due_date') THEN 'r.due_date' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='should_pay_date') THEN 'r.should_pay_date' ELSE 'NULL' END);
+SET @c_due_date = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='due_date') THEN 'r.due_date' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='should_pay_date') THEN 'r.should_pay_date' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='charge_date') THEN 'r.charge_date' ELSE 'NULL' END);
 SET @c_charge_date = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='charge_date') THEN 'r.charge_date' ELSE 'NULL' END);
 SET @c_sync_time = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='sync_time') THEN 'r.sync_time' ELSE 'NOW()' END);
 
--- 金额字段兼容（增强：支持直接欠费字段）
-SET @c_receivable = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='receivable_principal') THEN 'r.receivable_principal' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='receivable_amount') THEN 'r.receivable_amount' ELSE '0' END);
-SET @c_received = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='received_principal') THEN 'r.received_principal' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='received_amount') THEN 'r.received_amount' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='pay_amount') THEN 'r.pay_amount' ELSE '0' END);
-SET @c_arrear_direct = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='arrear_principal') THEN 'r.arrear_principal' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='arrear_amount') THEN 'r.arrear_amount' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='owing_amount') THEN 'r.owing_amount' ELSE 'NULL' END);
-SET @c_reduction = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='reduction_amount') THEN 'r.reduction_amount' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='discount_amount') THEN 'r.discount_amount' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='derate_amount') THEN 'r.derate_amount' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='waiver_amount') THEN 'r.waiver_amount' ELSE '0' END);
-
+-- 欠费金额候选（优先直接欠费字段，其次应收-实收，再次未收/欠费别名）
+SET @c_arrear_direct = (SELECT CASE
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='arrear_principal') THEN 'r.arrear_principal'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='arrear_amount') THEN 'r.arrear_amount'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='owing_amount') THEN 'r.owing_amount'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='unpaid_amount') THEN 'r.unpaid_amount'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='debt_amount') THEN 'r.debt_amount'
+  ELSE 'NULL' END);
+SET @c_receivable = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='receivable_principal') THEN 'r.receivable_principal' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='receivable_amount') THEN 'r.receivable_amount' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='should_amount') THEN 'r.should_amount' ELSE '0' END);
+SET @c_received = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='received_principal') THEN 'r.received_principal' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='received_amount') THEN 'r.received_amount' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='pay_amount') THEN 'r.pay_amount' WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='paid_amount') THEN 'r.paid_amount' ELSE '0' END);
 SET @arrear_expr = CONCAT('GREATEST(COALESCE(',@c_arrear_direct,', IFNULL(',@c_receivable,',0)-IFNULL(',@c_received,',0), 0),0)');
 
-INSERT INTO cus_std_arrear_bill (source_system,source_detail_id,project_id,project_name,customer_id,customer_name,room_id,room_name,bill_no,fee_item_name,bill_date,due_date,arrear_principal,raw_sync_time)
-SELECT 'property',
-       CAST((SELECT 1) AS SIGNED),
-       NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,NOW() WHERE 1=0;
+-- 减免字段候选（兼容负数入账，使用 ABS）
+SET @c_reduction = (SELECT CASE
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='reduction_amount') THEN 'r.reduction_amount'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='discount_amount') THEN 'r.discount_amount'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='derate_amount') THEN 'r.derate_amount'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='waiver_amount') THEN 'r.waiver_amount'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='minus_amount') THEN 'r.minus_amount'
+  ELSE '0' END);
+SET @reduction_expr = CONCAT('ABS(IFNULL(',@c_reduction,',0))');
 
 SET @sql_std_arrear = CONCAT(
 "INSERT INTO cus_std_arrear_bill (source_system,source_detail_id,project_id,project_name,customer_id,customer_name,room_id,room_name,bill_no,fee_item_name,bill_date,due_date,arrear_principal,raw_sync_time) ",
@@ -50,13 +56,12 @@ PREPARE stmt1 FROM @sql_std_arrear; EXECUTE stmt1; DEALLOCATE PREPARE stmt1;
 
 SET @sql_std_reduction = CONCAT(
 "INSERT INTO cus_std_fee_reduction (source_system,source_detail_id,stat_year,project_id,project_name,room_id,room_name,fee_item_name,reduction_amount,raw_sync_time) ",
-"SELECT 'property',",@c_id,",YEAR(COALESCE(",@c_bill_date,",",@c_charge_date,",NOW())),",@c_project_id,",",@c_project_name,",",@c_room_id,",",@c_room_name,",",@c_fee_item_name,",IFNULL(",@c_reduction,",0),",@c_sync_time," FROM cus_raw_charge_customerchargedetail r ",
-"WHERE IFNULL(",@c_reduction,",0) > 0 ",
+"SELECT 'property',",@c_id,",YEAR(COALESCE(",@c_bill_date,",",@c_charge_date,",NOW())),",@c_project_id,",",@c_project_name,",",@c_room_id,",",@c_room_name,",",@c_fee_item_name,",@reduction_expr,",",@c_sync_time," FROM cus_raw_charge_customerchargedetail r ",
+"WHERE ",@reduction_expr," > 0 ",
 "ON DUPLICATE KEY UPDATE stat_year=VALUES(stat_year),project_id=VALUES(project_id),project_name=VALUES(project_name),room_id=VALUES(room_id),room_name=VALUES(room_name),fee_item_name=VALUES(fee_item_name),reduction_amount=VALUES(reduction_amount),raw_sync_time=VALUES(raw_sync_time),std_update_time=CURRENT_TIMESTAMP"
 );
 PREPARE stmt2 FROM @sql_std_reduction; EXECUTE stmt2; DEALLOCATE PREPARE stmt2;
 
--- 模型计算
 INSERT INTO cus_model_large_arrear_result (
   model_batch_no,project_id,project_name,customer_id,customer_name,room_id,room_name,arrear_principal_total,earliest_due_date,arrear_age_days,amount_level,age_level,warning_level,warning_title,warning_content
 )
