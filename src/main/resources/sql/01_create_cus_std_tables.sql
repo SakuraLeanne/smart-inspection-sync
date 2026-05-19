@@ -110,3 +110,52 @@ INSERT INTO cus_keyword_rule_config(rule_type, keyword, standard_keyword, priori
 ('WORK_ORDER_KEYWORD', '电瓶车', '电动车', 121, 1),('WORK_ORDER_KEYWORD', '小车', '车辆', 130, 1),('WORK_ORDER_KEYWORD', '机动车', '车辆', 131, 1),
 ('WORK_ORDER_KEYWORD', '花盆', '花盆', 140, 1),('WORK_ORDER_KEYWORD', '树枝', '树枝', 150, 1),('WORK_ORDER_KEYWORD', '枯树', '树枝', 151, 1)
 ON DUPLICATE KEY UPDATE standard_keyword=VALUES(standard_keyword),priority=VALUES(priority),enabled=VALUES(enabled);
+
+-- ============================================================
+-- 财务风险标准层表
+-- 1) cus_std_arrear_bill: 从收费明细抽取欠费本金>0数据
+-- 2) cus_std_fee_reduction: 从收费明细抽取减免金额>0数据
+-- 说明: 两表均以(source_system, source_detail_id)保证幂等写入
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `cus_std_arrear_bill` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `source_system` varchar(50) NOT NULL DEFAULT 'property' COMMENT '来源系统',
+  `source_detail_id` bigint NOT NULL COMMENT '来源明细ID',
+  `project_id` bigint DEFAULT NULL COMMENT '项目ID',
+  `project_name` varchar(255) DEFAULT NULL COMMENT '项目名称',
+  `customer_id` bigint DEFAULT NULL COMMENT '客户ID',
+  `customer_name` varchar(255) DEFAULT NULL COMMENT '客户名称',
+  `room_id` bigint DEFAULT NULL COMMENT '房间ID',
+  `room_name` varchar(255) DEFAULT NULL COMMENT '房间名称',
+  `bill_no` varchar(128) DEFAULT NULL COMMENT '账单号',
+  `fee_item_name` varchar(255) DEFAULT NULL COMMENT '费用项',
+  `bill_date` date DEFAULT NULL COMMENT '应收日期',
+  `due_date` date DEFAULT NULL COMMENT '应缴日期',
+  `arrear_principal` decimal(18,2) NOT NULL DEFAULT 0.00 COMMENT '欠费本金',
+  `raw_sync_time` datetime DEFAULT NULL COMMENT '原始表同步时间',
+  `std_build_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '标准表生成时间',
+  `std_update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '标准表更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_source_detail` (`source_system`, `source_detail_id`),
+  KEY `idx_arrear_group` (`project_id`, `customer_id`, `room_id`),
+  KEY `idx_due_date` (`due_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='欠费账单标准表';
+
+CREATE TABLE IF NOT EXISTS `cus_std_fee_reduction` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `source_system` varchar(50) NOT NULL DEFAULT 'property' COMMENT '来源系统',
+  `source_detail_id` bigint NOT NULL COMMENT '来源明细ID',
+  `stat_year` int NOT NULL COMMENT '统计年度',
+  `project_id` bigint DEFAULT NULL COMMENT '项目ID',
+  `project_name` varchar(255) DEFAULT NULL COMMENT '项目名称',
+  `room_id` bigint DEFAULT NULL COMMENT '房间ID',
+  `room_name` varchar(255) DEFAULT NULL COMMENT '房间名称',
+  `fee_item_name` varchar(255) DEFAULT NULL COMMENT '费用项',
+  `reduction_amount` decimal(18,2) NOT NULL DEFAULT 0.00 COMMENT '减免金额',
+  `raw_sync_time` datetime DEFAULT NULL COMMENT '原始表同步时间',
+  `std_build_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '标准表生成时间',
+  `std_update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '标准表更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_source_detail` (`source_system`, `source_detail_id`),
+  KEY `idx_reduction_group` (`stat_year`, `project_id`, `room_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='费用减免标准表';
