@@ -1,5 +1,25 @@
+-- ============================================================
+-- 文件: 08_calculate_cus_charge_risk_model.sql
+-- 目标: 基于 MySQL8 从 cus_raw_charge_customerchargedetail 生成标准层与模型层结果
+-- 特性:
+--   1) 可重复执行（标准层使用 INSERT ... ON DUPLICATE KEY UPDATE）
+--   2) 模型结果按批次号 model_batch_no 入库
+--   3) 覆盖两个场景：
+--      - 大额欠费财务风险预警
+--      - 物业费用减免合规性探查
+-- ============================================================
+
+-- 统一批次号（格式：yyyyMMddHHmmss）
 SET @model_batch_no = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s');
 
+-- ============================================================
+-- Step-1: 构建标准表 cus_std_arrear_bill（欠费账单）
+-- 口径说明:
+--   欠费本金 = max(应收本金 - 实收本金, 0)
+--   仅保留欠费本金 > 0 的明细
+-- 幂等说明:
+--   以 (source_system, source_detail_id) 唯一键冲突时执行更新
+-- ============================================================
 INSERT INTO cus_std_arrear_bill (
   source_system,source_detail_id,project_id,project_name,customer_id,customer_name,room_id,room_name,bill_no,fee_item_name,bill_date,due_date,arrear_principal,raw_sync_time
 )
@@ -13,6 +33,14 @@ project_id=VALUES(project_id),project_name=VALUES(project_name),customer_id=VALU
 room_id=VALUES(room_id),room_name=VALUES(room_name),bill_no=VALUES(bill_no),fee_item_name=VALUES(fee_item_name),bill_date=VALUES(bill_date),due_date=VALUES(due_date),
 arrear_principal=VALUES(arrear_principal),raw_sync_time=VALUES(raw_sync_time),std_update_time=CURRENT_TIMESTAMP;
 
+-- ============================================================
+-- Step-2: 构建标准表 cus_std_fee_reduction（费用减免）
+-- 口径说明:
+--   统计年度 stat_year = YEAR(COALESCE(bill_date, charge_date, NOW()))
+--   仅保留 reduction_amount > 0 的明细
+-- 幂等说明:
+--   以 (source_system, source_detail_id) 唯一键冲突时执行更新
+-- ============================================================
 INSERT INTO cus_std_fee_reduction (
   source_system,source_detail_id,stat_year,project_id,project_name,room_id,room_name,fee_item_name,reduction_amount,raw_sync_time
 )
@@ -24,6 +52,22 @@ ON DUPLICATE KEY UPDATE
 stat_year=VALUES(stat_year),project_id=VALUES(project_id),project_name=VALUES(project_name),room_id=VALUES(room_id),room_name=VALUES(room_name),
 fee_item_name=VALUES(fee_item_name),reduction_amount=VALUES(reduction_amount),raw_sync_time=VALUES(raw_sync_time),std_update_time=CURRENT_TIMESTAMP;
 
+-- ============================================================
+-- Step-3: 生成大额欠费财务风险预警结果 cus_model_large_arrear_result
+-- 聚合粒度: 项目 + 客户 + 房间
+-- 规则:
+--   金额等级:
+--     >= 100000 -> 一级
+--     >= 70000  -> 二级
+--     >= 50000  -> 三级
+--   账龄等级（最早 due_date 到今天）：
+--     >= 730天  -> 一级（约2年）
+--     >= 547天  -> 二级（约1.5年）
+--     >= 365天  -> 三级（约1年）
+--   最终等级: 取金额等级和账龄等级中的最高等级
+-- 入模条件:
+--   金额达到三级阈值 或 账龄达到三级阈值
+-- ============================================================
 INSERT INTO cus_model_large_arrear_result (
   model_batch_no,project_id,project_name,customer_id,customer_name,room_id,room_name,arrear_principal_total,earliest_due_date,arrear_age_days,amount_level,age_level,warning_level,warning_title,warning_content
 )
@@ -41,6 +85,15 @@ FROM cus_std_arrear_bill t
 GROUP BY t.project_id,t.customer_id,t.room_id
 HAVING SUM(t.arrear_principal)>=50000 OR TIMESTAMPDIFF(DAY,MIN(t.due_date),CURDATE())>=365;
 
+-- ============================================================
+-- Step-4: 生成费用减免合规性探查结果 cus_model_fee_reduction_result
+-- 聚合粒度: 年度 + 项目 + 房间
+-- 排名方式: ROW_NUMBER() OVER(PARTITION BY stat_year, project_id ORDER BY reduction_amount_total DESC, room_id)
+-- 预警等级:
+--   TOP1-TOP3   -> 一级预警
+--   TOP4-TOP5   -> 二级预警
+--   TOP6-TOP10  -> 三级预警
+-- ============================================================
 INSERT INTO cus_model_fee_reduction_result (
   model_batch_no,stat_year,project_id,project_name,room_id,room_name,reduction_amount_total,project_year_rank,warning_level,warning_title,warning_content
 )

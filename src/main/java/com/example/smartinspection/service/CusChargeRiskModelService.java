@@ -4,6 +4,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+/**
+ * 财务风险模型服务。
+ * <p>
+ * 职责：
+ * 1) 基于 raw 明细构建标准层：欠费账单、费用减免；
+ * 2) 按批次计算模型结果：大额欠费预警、费用减免合规预警；
+ * 3) 统一写入预警工单表，供后续流转。
+ * </p>
+ */
 @Service
 public class CusChargeRiskModelService {
     private final JdbcTemplate mysqlJdbcTemplate;
@@ -12,11 +21,19 @@ public class CusChargeRiskModelService {
         this.mysqlJdbcTemplate = mysqlJdbcTemplate;
     }
 
+    /**
+     * 构建标准层（幂等）。
+     * 使用 INSERT ... ON DUPLICATE KEY UPDATE，重复执行不会产生重复脏数据。
+     */
     public void buildArrearAndReductionStdTables() {
         mysqlJdbcTemplate.update(SqlHolder.BUILD_STD_ARREAR_BILL);
         mysqlJdbcTemplate.update(SqlHolder.BUILD_STD_FEE_REDUCTION);
     }
 
+    /**
+     * 计算模型层结果并写入预警工单。
+     * <p>每次执行生成唯一批次号 model_batch_no，便于审计与回溯。</p>
+     */
     public void calculateChargeRiskModels() {
         String batchNo = mysqlJdbcTemplate.queryForObject("SELECT DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')", String.class);
         mysqlJdbcTemplate.update("DELETE FROM cus_model_large_arrear_result WHERE model_batch_no = ?", batchNo);
@@ -30,6 +47,7 @@ public class CusChargeRiskModelService {
         mysqlJdbcTemplate.update(SqlHolder.INSERT_WARNING_ORDER_FROM_REDUCTION, batchNo, batchNo);
     }
 
+    /** SQL 常量定义区。 */
     private static class SqlHolder {
         private static final String BUILD_STD_ARREAR_BILL = "INSERT INTO cus_std_arrear_bill (" +
             "source_system,source_detail_id,project_id,project_name,customer_id,customer_name,room_id,room_name,bill_no,fee_item_name,bill_date,due_date,arrear_principal,raw_sync_time) " +

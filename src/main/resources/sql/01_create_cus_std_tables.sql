@@ -110,6 +110,13 @@ INSERT INTO cus_keyword_rule_config(rule_type, keyword, standard_keyword, priori
 ('WORK_ORDER_KEYWORD', '电瓶车', '电动车', 121, 1),('WORK_ORDER_KEYWORD', '小车', '车辆', 130, 1),('WORK_ORDER_KEYWORD', '机动车', '车辆', 131, 1),
 ('WORK_ORDER_KEYWORD', '花盆', '花盆', 140, 1),('WORK_ORDER_KEYWORD', '树枝', '树枝', 150, 1),('WORK_ORDER_KEYWORD', '枯树', '树枝', 151, 1)
 ON DUPLICATE KEY UPDATE standard_keyword=VALUES(standard_keyword),priority=VALUES(priority),enabled=VALUES(enabled);
+
+-- ============================================================
+-- 财务风险标准层表
+-- 1) cus_std_arrear_bill: 从收费明细抽取欠费本金>0数据
+-- 2) cus_std_fee_reduction: 从收费明细抽取减免金额>0数据
+-- 说明: 两表均以(source_system, source_detail_id)保证幂等写入
+-- ============================================================
 CREATE TABLE IF NOT EXISTS `cus_std_arrear_bill` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
   `source_system` varchar(50) NOT NULL DEFAULT 'property' COMMENT '来源系统',

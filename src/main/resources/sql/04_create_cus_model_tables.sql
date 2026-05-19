@@ -23,6 +23,13 @@ CREATE TABLE IF NOT EXISTS `cus_model_repeat_repair_result` (
   KEY `idx_warning_level` (`warning_level`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='重复维修与过度维修模型结果表';
 
+
+-- ============================================================
+-- 财务风险模型结果表
+-- 1) cus_model_large_arrear_result: 大额欠费财务风险预警结果
+-- 2) cus_model_fee_reduction_result: 物业费用减免合规探查结果
+-- 3) cus_warning_order: 可选统一预警工单汇总表
+-- ============================================================
 CREATE TABLE IF NOT EXISTS `cus_model_large_arrear_result` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
   `model_batch_no` varchar(64) NOT NULL COMMENT '模型批次号',
