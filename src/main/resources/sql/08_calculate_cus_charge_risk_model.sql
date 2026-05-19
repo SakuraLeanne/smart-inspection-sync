@@ -1,73 +1,68 @@
 -- ============================================================
 -- 文件: 08_calculate_cus_charge_risk_model.sql
 -- 目标: 基于 MySQL8 从 cus_raw_charge_customerchargedetail 生成标准层与模型层结果
--- 特性:
---   1) 可重复执行（标准层使用 INSERT ... ON DUPLICATE KEY UPDATE）
---   2) 模型结果按批次号 model_batch_no 入库
---   3) 覆盖两个场景：
---      - 大额欠费财务风险预警
---      - 物业费用减免合规性探查
+-- 关键修复:
+--   兼容 raw 表字段命名差异（例如不存在 project_id 时自动降级到 region_id）
+--   通过 information_schema + PREPARE 动态拼装 SQL，避免 1054 Unknown column
 -- ============================================================
 
--- 统一批次号（格式：yyyyMMddHHmmss）
 SET @model_batch_no = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s');
+SET @schema_name = DATABASE();
 
--- ============================================================
--- Step-1: 构建标准表 cus_std_arrear_bill（欠费账单）
--- 口径说明:
---   欠费本金 = max(应收本金 - 实收本金, 0)
---   仅保留欠费本金 > 0 的明细
--- 幂等说明:
---   以 (source_system, source_detail_id) 唯一键冲突时执行更新
--- ============================================================
-INSERT INTO cus_std_arrear_bill (
-  source_system,source_detail_id,project_id,project_name,customer_id,customer_name,room_id,room_name,bill_no,fee_item_name,bill_date,due_date,arrear_principal,raw_sync_time
-)
-SELECT
-  'property',r.id,r.project_id,r.project_name,r.customer_id,r.customer_name,r.room_id,r.room_name,r.bill_no,r.fee_item_name,
-  DATE(r.bill_date),DATE(r.due_date),GREATEST(IFNULL(r.receivable_principal,0)-IFNULL(r.received_principal,0),0),r.sync_time
-FROM cus_raw_charge_customerchargedetail r
-WHERE GREATEST(IFNULL(r.receivable_principal,0)-IFNULL(r.received_principal,0),0) > 0
-ON DUPLICATE KEY UPDATE
-project_id=VALUES(project_id),project_name=VALUES(project_name),customer_id=VALUES(customer_id),customer_name=VALUES(customer_name),
-room_id=VALUES(room_id),room_name=VALUES(room_name),bill_no=VALUES(bill_no),fee_item_name=VALUES(fee_item_name),bill_date=VALUES(bill_date),due_date=VALUES(due_date),
-arrear_principal=VALUES(arrear_principal),raw_sync_time=VALUES(raw_sync_time),std_update_time=CURRENT_TIMESTAMP;
+-- 按“优先级”选择可用字段名（不存在则返回 NULL 常量表达式）
+SET @c_id = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='id') THEN 'r.id' ELSE '0' END);
+SET @c_project_id = (SELECT CASE
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='project_id') THEN 'r.project_id'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='region_id') THEN 'r.region_id'
+  ELSE 'NULL' END);
+SET @c_project_name = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='project_name') THEN 'r.project_name' ELSE 'NULL' END);
+SET @c_customer_id = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='customer_id') THEN 'r.customer_id' ELSE 'NULL' END);
+SET @c_customer_name = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='customer_name') THEN 'r.customer_name' ELSE 'NULL' END);
+SET @c_room_id = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='room_id') THEN 'r.room_id' ELSE 'NULL' END);
+SET @c_room_name = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='room_name') THEN 'r.room_name' ELSE 'NULL' END);
+SET @c_bill_no = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='bill_no') THEN 'r.bill_no' ELSE 'NULL' END);
+SET @c_fee_item_name = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='fee_item_name') THEN 'r.fee_item_name' ELSE 'NULL' END);
+SET @c_bill_date = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='bill_date') THEN 'r.bill_date' ELSE 'NULL' END);
+SET @c_due_date = (SELECT CASE
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='due_date') THEN 'r.due_date'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='should_pay_date') THEN 'r.should_pay_date'
+  ELSE 'NULL' END);
+SET @c_sync_time = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='sync_time') THEN 'r.sync_time' ELSE 'NOW()' END);
+SET @c_receivable = (SELECT CASE
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='receivable_principal') THEN 'r.receivable_principal'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='receivable_amount') THEN 'r.receivable_amount'
+  ELSE '0' END);
+SET @c_received = (SELECT CASE
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='received_principal') THEN 'r.received_principal'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='received_amount') THEN 'r.received_amount'
+  ELSE '0' END);
+SET @c_reduction = (SELECT CASE
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='reduction_amount') THEN 'r.reduction_amount'
+  WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='discount_amount') THEN 'r.discount_amount'
+  ELSE '0' END);
+SET @c_charge_date = (SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema=@schema_name AND table_name='cus_raw_charge_customerchargedetail' AND column_name='charge_date') THEN 'r.charge_date' ELSE 'NULL' END);
 
--- ============================================================
--- Step-2: 构建标准表 cus_std_fee_reduction（费用减免）
--- 口径说明:
---   统计年度 stat_year = YEAR(COALESCE(bill_date, charge_date, NOW()))
---   仅保留 reduction_amount > 0 的明细
--- 幂等说明:
---   以 (source_system, source_detail_id) 唯一键冲突时执行更新
--- ============================================================
-INSERT INTO cus_std_fee_reduction (
-  source_system,source_detail_id,stat_year,project_id,project_name,room_id,room_name,fee_item_name,reduction_amount,raw_sync_time
-)
-SELECT
-  'property',r.id,YEAR(COALESCE(r.bill_date,r.charge_date,NOW())),r.project_id,r.project_name,r.room_id,r.room_name,r.fee_item_name,IFNULL(r.reduction_amount,0),r.sync_time
-FROM cus_raw_charge_customerchargedetail r
-WHERE IFNULL(r.reduction_amount,0) > 0
-ON DUPLICATE KEY UPDATE
-stat_year=VALUES(stat_year),project_id=VALUES(project_id),project_name=VALUES(project_name),room_id=VALUES(room_id),room_name=VALUES(room_name),
-fee_item_name=VALUES(fee_item_name),reduction_amount=VALUES(reduction_amount),raw_sync_time=VALUES(raw_sync_time),std_update_time=CURRENT_TIMESTAMP;
+-- Step-1 标准欠费表（动态列映射）
+SET @sql_std_arrear = CONCAT(
+"INSERT INTO cus_std_arrear_bill (source_system,source_detail_id,project_id,project_name,customer_id,customer_name,room_id,room_name,bill_no,fee_item_name,bill_date,due_date,arrear_principal,raw_sync_time) ",
+"SELECT 'property',",@c_id,",",@c_project_id,",",@c_project_name,",",@c_customer_id,",",@c_customer_name,",",@c_room_id,",",@c_room_name,",",@c_bill_no,",",@c_fee_item_name,",",
+"DATE(",@c_bill_date,"),DATE(",@c_due_date,"),GREATEST(IFNULL(",@c_receivable,",0)-IFNULL(",@c_received,",0),0),",@c_sync_time," ",
+"FROM cus_raw_charge_customerchargedetail r ",
+"WHERE GREATEST(IFNULL(",@c_receivable,",0)-IFNULL(",@c_received,",0),0) > 0 ",
+"ON DUPLICATE KEY UPDATE project_id=VALUES(project_id),project_name=VALUES(project_name),customer_id=VALUES(customer_id),customer_name=VALUES(customer_name),room_id=VALUES(room_id),room_name=VALUES(room_name),bill_no=VALUES(bill_no),fee_item_name=VALUES(fee_item_name),bill_date=VALUES(bill_date),due_date=VALUES(due_date),arrear_principal=VALUES(arrear_principal),raw_sync_time=VALUES(raw_sync_time),std_update_time=CURRENT_TIMESTAMP"
+);
+PREPARE stmt1 FROM @sql_std_arrear; EXECUTE stmt1; DEALLOCATE PREPARE stmt1;
 
--- ============================================================
--- Step-3: 生成大额欠费财务风险预警结果 cus_model_large_arrear_result
--- 聚合粒度: 项目 + 客户 + 房间
--- 规则:
---   金额等级:
---     >= 100000 -> 一级
---     >= 70000  -> 二级
---     >= 50000  -> 三级
---   账龄等级（最早 due_date 到今天）：
---     >= 730天  -> 一级（约2年）
---     >= 547天  -> 二级（约1.5年）
---     >= 365天  -> 三级（约1年）
---   最终等级: 取金额等级和账龄等级中的最高等级
--- 入模条件:
---   金额达到三级阈值 或 账龄达到三级阈值
--- ============================================================
+-- Step-2 标准减免表（动态列映射）
+SET @sql_std_reduction = CONCAT(
+"INSERT INTO cus_std_fee_reduction (source_system,source_detail_id,stat_year,project_id,project_name,room_id,room_name,fee_item_name,reduction_amount,raw_sync_time) ",
+"SELECT 'property',",@c_id,",YEAR(COALESCE(",@c_bill_date,",",@c_charge_date,",NOW())),",@c_project_id,",",@c_project_name,",",@c_room_id,",",@c_room_name,",",@c_fee_item_name,",IFNULL(",@c_reduction,",0),",@c_sync_time," ",
+"FROM cus_raw_charge_customerchargedetail r WHERE IFNULL(",@c_reduction,",0) > 0 ",
+"ON DUPLICATE KEY UPDATE stat_year=VALUES(stat_year),project_id=VALUES(project_id),project_name=VALUES(project_name),room_id=VALUES(room_id),room_name=VALUES(room_name),fee_item_name=VALUES(fee_item_name),reduction_amount=VALUES(reduction_amount),raw_sync_time=VALUES(raw_sync_time),std_update_time=CURRENT_TIMESTAMP"
+);
+PREPARE stmt2 FROM @sql_std_reduction; EXECUTE stmt2; DEALLOCATE PREPARE stmt2;
+
+-- Step-3 大额欠费模型
 INSERT INTO cus_model_large_arrear_result (
   model_batch_no,project_id,project_name,customer_id,customer_name,room_id,room_name,arrear_principal_total,earliest_due_date,arrear_age_days,amount_level,age_level,warning_level,warning_title,warning_content
 )
@@ -85,15 +80,7 @@ FROM cus_std_arrear_bill t
 GROUP BY t.project_id,t.customer_id,t.room_id
 HAVING SUM(t.arrear_principal)>=50000 OR TIMESTAMPDIFF(DAY,MIN(t.due_date),CURDATE())>=365;
 
--- ============================================================
--- Step-4: 生成费用减免合规性探查结果 cus_model_fee_reduction_result
--- 聚合粒度: 年度 + 项目 + 房间
--- 排名方式: ROW_NUMBER() OVER(PARTITION BY stat_year, project_id ORDER BY reduction_amount_total DESC, room_id)
--- 预警等级:
---   TOP1-TOP3   -> 一级预警
---   TOP4-TOP5   -> 二级预警
---   TOP6-TOP10  -> 三级预警
--- ============================================================
+-- Step-4 费用减免模型
 INSERT INTO cus_model_fee_reduction_result (
   model_batch_no,stat_year,project_id,project_name,room_id,room_name,reduction_amount_total,project_year_rank,warning_level,warning_title,warning_content
 )
