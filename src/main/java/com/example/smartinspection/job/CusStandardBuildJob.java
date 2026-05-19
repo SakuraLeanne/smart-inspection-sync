@@ -2,6 +2,7 @@ package com.example.smartinspection.job;
 
 import com.example.smartinspection.service.CusRepeatRepairModelService;
 import com.example.smartinspection.service.CusStandardTableBuildService;
+import com.example.smartinspection.service.CusChargeRiskModelService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -9,11 +10,14 @@ import org.springframework.stereotype.Component;
 public class CusStandardBuildJob {
     private final CusStandardTableBuildService standardTableBuildService;
     private final CusRepeatRepairModelService repeatRepairModelService;
+    private final CusChargeRiskModelService chargeRiskModelService;
 
     public CusStandardBuildJob(CusStandardTableBuildService standardTableBuildService,
-                               CusRepeatRepairModelService repeatRepairModelService) {
+                               CusRepeatRepairModelService repeatRepairModelService,
+                               CusChargeRiskModelService chargeRiskModelService) {
         this.standardTableBuildService = standardTableBuildService;
         this.repeatRepairModelService = repeatRepairModelService;
+        this.chargeRiskModelService = chargeRiskModelService;
     }
 
     /**
@@ -32,5 +36,7 @@ public class CusStandardBuildJob {
         standardTableBuildService.buildStdWorkOrderHistory();
         standardTableBuildService.buildStdWorkOrder();
         repeatRepairModelService.calculateRepeatRepairModel();
+        chargeRiskModelService.buildArrearAndReductionStdTables();
+        chargeRiskModelService.calculateChargeRiskModels();
     }
 }
