@@ -4,6 +4,14 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+/**
+ * 重复维修/过度维修模型服务。
+ * <p>
+ * 模型目标：
+ * 1) 基于标准工单表识别“同项目+同位置+同工单类型+同问题关键词”的高频重复报修；
+ * 2) 输出近90天窗口下的分级预警结果，支撑纪检稽核。
+ * </p>
+ */
 @Service
 public class CusRepeatRepairModelService {
     private final JdbcTemplate mysqlJdbcTemplate;
@@ -12,10 +20,26 @@ public class CusRepeatRepairModelService {
         this.mysqlJdbcTemplate = mysqlJdbcTemplate;
     }
 
+    /**
+     * 计算重复维修模型结果。
+     * <p>
+     * 规则说明：
+     * - 统计窗口：近90天；
+     * - 入模条件：分组计数 >= 3；
+     * - 预警等级：>=10 一级，>=7 二级，其余（>=3）三级；
+     * - 批次号：yyyyMMddHHmmss，便于历史追溯。
+     * </p>
+     */
     public void calculateRepeatRepairModel() {
+        // 防止关联工单ID/编号拼接过长被截断。
         mysqlJdbcTemplate.execute("SET SESSION group_concat_max_len = 10240");
+
+        // 每次运行生成独立批次号，支持批次审计。
         String batchNo = mysqlJdbcTemplate.queryForObject("SELECT DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')", String.class);
+
+        // 同批次幂等：先删后插，避免重跑造成重复记录。
         mysqlJdbcTemplate.update("DELETE FROM cus_model_repeat_repair_result WHERE model_batch_no = ?", batchNo);
+
         mysqlJdbcTemplate.update("INSERT INTO cus_model_repeat_repair_result (model_batch_no,project_id,project_name,location_key,location_name,dispatch_type_name,dispatch_type_parent_name,content_keyword,stat_start_time,stat_end_time,repeat_count,warning_level,warning_title,warning_content,related_order_ids,related_order_nos) " +
             "SELECT ?,t.project_id,MAX(t.project_name),t.location_key,MAX(t.location_name),t.dispatch_type_name,t.dispatch_type_parent_name,t.content_keyword,DATE_SUB(NOW(),INTERVAL 90 DAY),NOW(),COUNT(*) repeat_count," +
             "CASE WHEN COUNT(*)>=10 THEN '一级预警' WHEN COUNT(*)>=7 THEN '二级预警' ELSE '三级预警' END," +
