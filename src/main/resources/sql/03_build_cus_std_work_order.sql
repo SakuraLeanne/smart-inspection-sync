@@ -1,10 +1,14 @@
 SET SESSION group_concat_max_len = 10240;
 
-/*
-兼容说明：当前部分环境的 cus_raw_customer_service 为精简版字段集，
-不存在 organization_item_id/place/address/customer_id/appointment_time/dispatch_time 等列。
-本脚本按“精简字段可运行”实现：缺失字段先置 NULL，后续可通过补齐 raw 表结构升级。
-*/
+-- ============================================================
+-- 文件: 03_build_cus_std_work_order.sql
+-- 目标: 从原始工单表构建标准工单主表 cus_std_work_order
+-- 说明:
+--   1) 依赖 cus_std_work_order_history 汇总信息（history_count / latest history）
+--   2) 使用 ON DUPLICATE KEY UPDATE 实现幂等更新
+--   3) 兼容精简 raw 字段集，缺失字段先置 NULL
+-- ============================================================
+
 INSERT INTO cus_std_work_order (
   source_system, source_order_id, order_no, project_id, project_name, location_id, location_name, location_text,
   customer_id, report_person, phone, service_source, service_source_name, service_type, service_type_name,

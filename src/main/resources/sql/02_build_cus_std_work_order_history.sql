@@ -1,3 +1,9 @@
+-- ============================================================
+-- 文件: 02_build_cus_std_work_order_history.sql
+-- 目标: 从原始处理记录表构建标准处理记录表 cus_std_work_order_history
+-- 说明: 使用 ON DUPLICATE KEY UPDATE 实现幂等更新
+-- ============================================================
+
 INSERT INTO cus_std_work_order_history (
   source_system, source_history_id, source_order_id, order_no, operation_time, operation_user_id,
   operation_user_name, operation_status, operation_status_name, operation_content, word_content,
