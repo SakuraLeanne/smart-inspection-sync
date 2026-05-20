@@ -90,3 +90,16 @@ CREATE TABLE IF NOT EXISTS `cus_warning_order` (
   KEY `idx_batch` (`model_batch_no`),
   KEY `idx_type_level` (`warning_type`, `warning_level`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='统一预警工单表';
+
+-- 与新口径对齐：补充结果扩展字段（幂等DDL）
+ALTER TABLE `cus_model_large_arrear_result`
+  ADD COLUMN IF NOT EXISTS `bill_count` int DEFAULT '0' COMMENT '欠费账单数量',
+  ADD COLUMN IF NOT EXISTS `fee_item_names` text COMMENT '涉及费用项',
+  ADD COLUMN IF NOT EXISTS `related_detail_ids` longtext COMMENT '关联来源明细ID';
+
+ALTER TABLE `cus_model_fee_reduction_result`
+  ADD COLUMN IF NOT EXISTS `bill_count` int DEFAULT '0' COMMENT '减免账单数量',
+  ADD COLUMN IF NOT EXISTS `fee_item_names` text COMMENT '涉及费用项',
+  ADD COLUMN IF NOT EXISTS `discount_user_names` text COMMENT '涉及减免操作人',
+  ADD COLUMN IF NOT EXISTS `check_statuses` text COMMENT '涉及审核状态',
+  ADD COLUMN IF NOT EXISTS `related_detail_ids` longtext COMMENT '关联来源明细ID';
