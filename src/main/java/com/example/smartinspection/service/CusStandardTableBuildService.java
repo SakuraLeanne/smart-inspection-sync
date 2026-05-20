@@ -4,6 +4,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+/**
+ * 标准层工单构建服务。
+ * <p>
+ * 功能：
+ * 1) 先构建处理记录标准表 cus_std_work_order_history；
+ * 2) 再构建工单主表 cus_std_work_order（依赖 history 汇总字段）；
+ * 3) 两步均基于 ON DUPLICATE KEY UPDATE 保证可重复执行。
+ * </p>
+ */
 @Service
 public class CusStandardTableBuildService {
     private final JdbcTemplate mysqlJdbcTemplate;
@@ -12,16 +21,25 @@ public class CusStandardTableBuildService {
         this.mysqlJdbcTemplate = mysqlJdbcTemplate;
     }
 
+    /**
+     * 构建标准处理记录表。
+     * 设置 group_concat_max_len 是为了后续主表汇总最后一条处理内容时避免截断。
+     */
     public void buildStdWorkOrderHistory() {
         mysqlJdbcTemplate.execute("SET SESSION group_concat_max_len = 10240");
         mysqlJdbcTemplate.execute(SqlHolder.BUILD_STD_WORK_ORDER_HISTORY);
     }
 
+    /**
+     * 构建标准工单主表。
+     * 依赖 history 子查询计算 history_count/last_history_* 字段。
+     */
     public void buildStdWorkOrder() {
         mysqlJdbcTemplate.execute("SET SESSION group_concat_max_len = 10240");
         mysqlJdbcTemplate.execute(SqlHolder.BUILD_STD_WORK_ORDER);
     }
 
+    /** SQL 常量区：集中维护标准层构建语句。 */
     private static class SqlHolder {
         private static final String BUILD_STD_WORK_ORDER_HISTORY = "INSERT INTO cus_std_work_order_history (" +
             "source_system,source_history_id,source_order_id,order_no,operation_time,operation_user_id,operation_user_name," +
