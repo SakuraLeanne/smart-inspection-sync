@@ -46,6 +46,6 @@ public class CusRepeatRepairModelService {
             "CONCAT('重复维修预警-',IFNULL(t.content_keyword,'未知')),CONCAT('近90天内重复次数=',COUNT(*),'，位置=',t.location_key)," +
             "GROUP_CONCAT(CAST(t.source_order_id AS CHAR) ORDER BY t.report_time DESC SEPARATOR ','),GROUP_CONCAT(IFNULL(t.order_no,'') ORDER BY t.report_time DESC SEPARATOR ',') " +
             "FROM (SELECT w.*,COALESCE(NULLIF(TRIM(w.location_name),''),CASE WHEN w.location_id IS NOT NULL THEN CONCAT('LOC-',w.location_id) END,NULLIF(TRIM(w.location_text),''),'未知位置') location_key FROM cus_std_work_order w WHERE w.is_repair_order=1 AND w.is_valid=1 AND w.is_finished=1 AND w.report_time>=DATE_SUB(NOW(),INTERVAL 90 DAY) AND w.content_keyword IS NOT NULL AND w.content_keyword<>'' AND w.content_keyword<>'其他') t " +
-            "GROUP BY t.project_id,t.location_key,t.dispatch_type_parent_name,t.dispatch_type_name,t.content_keyword HAVING COUNT(*)>=3", batchNo);
+            "GROUP BY t.project_id,t.project_name,t.location_key,t.dispatch_type_parent_name,t.dispatch_type_name,t.content_keyword HAVING COUNT(*)>=3", batchNo);
     }
 }
