@@ -7,9 +7,12 @@ spring:
       password: ${SQLSERVER_PASSWORD:UwO3V3MDCM}
     mysql:
       driver-class-name: com.mysql.cj.jdbc.Driver
-      jdbc-url: jdbc:mysql://10.30.1.70:3306/abcadmin_default?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&connectTimeout=5000&socketTimeout=30000&tcpKeepAlive=true&autoReconnect=true
+      jdbc-url: jdbc:mysql://10.30.1.70:3306/abcadmin_default?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&connectTimeout=10000&socketTimeout=60000&tcpKeepAlive=true&useSSL=true&requireSSL=false&allowPublicKeyRetrieval=true
       username: ${MYSQL_USERNAME:root}
       password: ${MYSQL_PASSWORD:1qazxsw2.}
+      # 连接池超时参数（毫秒），用于减少网络抖动导致的误判
+      connection-timeout: 30000
+      validation-timeout: 5000
 
 sync:
   batch-size:
