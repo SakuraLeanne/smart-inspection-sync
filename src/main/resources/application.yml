@@ -25,7 +25,6 @@ sync:
     customer-service-history-recent: "0 0 2 ? * MON"
   sqlserver:
     use-row-number-pagination: false
-
   full-init:
     enabled: false
     truncate-before-run: false
