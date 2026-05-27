@@ -35,6 +35,17 @@ CREATE TABLE IF NOT EXISTS cus_raw_customer_service_history (
   PRIMARY KEY (source_id), KEY idx_icsh_customer_service_id (customer_service_id), KEY idx_icsh_create_date (create_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+
+CREATE TABLE IF NOT EXISTS cus_raw_organization_item (
+  source_id int NOT NULL,
+  name varchar(255) DEFAULT NULL,
+  update_time datetime DEFAULT NULL,
+  sync_batch_no varchar(64) DEFAULT NULL,
+  sync_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (source_id),
+  KEY idx_iro_update_time (update_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS cus_sync_task_checkpoint (
   task_code varchar(100) NOT NULL,
   last_max_id int DEFAULT 0,
