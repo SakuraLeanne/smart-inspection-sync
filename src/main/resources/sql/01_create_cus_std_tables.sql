@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `cus_std_work_order` (
   `order_no` varchar(255) DEFAULT NULL COMMENT '工单编号',
   `project_id` int DEFAULT NULL COMMENT '项目/管理区ID，对应RegionId',
   `project_name` varchar(255) DEFAULT NULL COMMENT '项目名称，第一阶段可为空，后续关联组织表补充',
+  `source_region_id` int DEFAULT NULL COMMENT '源系统RegionId，用于追溯',
   `location_id` int DEFAULT NULL COMMENT '报事位置ID，对应OrganizationItemId',
   `location_name` varchar(255) DEFAULT NULL COMMENT '报事位置/楼栋/房间，第一阶段可由Place、Address或后续关联表补充',
   `location_text` varchar(500) DEFAULT NULL COMMENT '报事位置文本，兜底字段',
@@ -53,7 +54,7 @@ CREATE TABLE IF NOT EXISTS `cus_std_work_order` (
   `std_update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '标准表更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_source_order` (`source_system`, `source_order_id`),
-  KEY `idx_order_no` (`order_no`), KEY `idx_project_id` (`project_id`), KEY `idx_location_id` (`location_id`),
+  KEY `idx_order_no` (`order_no`), KEY `idx_project_id` (`project_id`), KEY `idx_source_region_id` (`source_region_id`), KEY `idx_location_id` (`location_id`),
   KEY `idx_location_name` (`location_name`), KEY `idx_report_time` (`report_time`), KEY `idx_service_type` (`service_type`),
   KEY `idx_repair_status` (`repair_status`), KEY `idx_dispatch_type_id` (`dispatch_type_id`), KEY `idx_content_keyword` (`content_keyword`),
   KEY `idx_model_group` (`project_id`, `location_name`, `dispatch_type_name`, `content_keyword`, `report_time`)

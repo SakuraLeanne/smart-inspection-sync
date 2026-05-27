@@ -52,6 +52,6 @@ FROM (
     AND w.content_keyword <> '其他'
 ) t
 -- 分组口径：项目 + 位置 + 工单大小类 + 关键词
-GROUP BY t.project_id, t.location_key, t.dispatch_type_parent_name, t.dispatch_type_name, t.content_keyword
+GROUP BY t.project_id, t.project_name, t.location_key, t.dispatch_type_parent_name, t.dispatch_type_name, t.content_keyword
 -- 入模阈值：重复次数至少3次
 HAVING COUNT(*) >= 3;
