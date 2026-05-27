@@ -7,9 +7,9 @@ spring:
       password: ${SQLSERVER_PASSWORD:UwO3V3MDCM}
     mysql:
       driver-class-name: com.mysql.jdbc.Driver
-      url: jdbc:mysql://10.30.1.3:3306/apppro?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
-      username: ${MYSQL_USERNAME:u_app_pro}
-      password: ${MYSQL_PASSWORD:BEDiAjvk3Q7d}
+      url: jdbc:mysql://10.30.1.70:3306/abcadmin_default?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+      username: ${MYSQL_USERNAME:root}
+      password: ${MYSQL_PASSWORD:1qazxsw2.}
 
 sync:
   batch-size:
@@ -25,7 +25,6 @@ sync:
     customer-service-history-recent: "0 0 2 ? * MON"
   sqlserver:
     use-row-number-pagination: false
-
   full-init:
     enabled: false
     truncate-before-run: false

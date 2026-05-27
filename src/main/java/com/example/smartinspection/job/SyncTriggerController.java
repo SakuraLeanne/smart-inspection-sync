@@ -1,11 +1,13 @@
 package com.example.smartinspection.job;
 
-import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 
 @RestController
 @RequestMapping("/api/sync")
