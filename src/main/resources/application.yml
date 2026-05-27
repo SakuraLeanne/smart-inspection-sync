@@ -6,8 +6,8 @@ spring:
       username: ${SQLSERVER_USERNAME:sa}
       password: ${SQLSERVER_PASSWORD:UwO3V3MDCM}
     mysql:
-      driver-class-name: com.mysql.jdbc.Driver
-      url: jdbc:mysql://10.30.1.3:3306/apppro?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://10.30.1.3:3306/apppro?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&connectTimeout=5000&socketTimeout=30000&tcpKeepAlive=true&autoReconnect=true
       username: ${MYSQL_USERNAME:u_app_pro}
       password: ${MYSQL_PASSWORD:BEDiAjvk3Q7d}
 

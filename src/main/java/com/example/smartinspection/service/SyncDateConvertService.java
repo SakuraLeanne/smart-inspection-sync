@@ -7,6 +7,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class SyncDateConvertService {
     private static final LocalDateTime MIN_VALID = LocalDateTime.of(1900, 1, 1, 0, 0);
+
+    public LocalDateTime toLocalDateTime(Timestamp value) {
+        return normalize(value);
+    }
+
     public LocalDateTime normalize(Timestamp value) {
         if (value == null) return null;
         LocalDateTime t = value.toLocalDateTime();
