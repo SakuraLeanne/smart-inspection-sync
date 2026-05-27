@@ -10,7 +10,7 @@ SET SESSION group_concat_max_len = 10240;
 -- ============================================================
 
 INSERT INTO cus_std_work_order (
-  source_system, source_order_id, order_no, project_id, project_name, location_id, location_name, location_text,
+  source_system, source_order_id, order_no, project_id, project_name, source_region_id, location_id, location_name, location_text,
   customer_id, report_person, phone, service_source, service_source_name, service_type, service_type_name,
   repair_status, repair_status_name, dispatch_type_id, dispatch_type_name, dispatch_type_parent_id,
   dispatch_type_parent_name, dispatch_priority_id, dispatch_priority_name, report_time, accepted_time,
@@ -20,7 +20,7 @@ INSERT INTO cus_std_work_order (
   last_word_content, is_repair_order, is_closed, is_finished, is_valid, raw_sync_time
 )
 SELECT
-  'property', cs.source_id, cs.voucher_no, cs.region_id, NULL, NULL, NULL, NULL,
+  'property', cs.source_id, cs.voucher_no, NULL, org.name, cs.region_id, NULL, NULL, NULL,
   NULL, cs.customer_name, cs.phone, cs.service_source,
   CASE WHEN cs.service_source = 1 THEN '自检自查' ELSE CONCAT('来源-', IFNULL(cs.service_source, 'NULL')) END,
   cs.service_type, CASE WHEN cs.service_type = 0 THEN '报修' ELSE CONCAT('服务类型-', IFNULL(cs.service_type, 'NULL')) END,
@@ -57,6 +57,7 @@ SELECT
   CASE WHEN hs.history_count > 0 THEN 1 ELSE 0 END,
   1, cs.sync_time
 FROM cus_raw_customer_service cs
+LEFT JOIN cus_raw_organization_item org ON cs.region_id = org.source_id
 LEFT JOIN (
   SELECT source_order_id,
          COUNT(*) AS history_count,
@@ -67,7 +68,7 @@ LEFT JOIN (
   GROUP BY source_order_id
 ) hs ON hs.source_order_id = cs.source_id
 ON DUPLICATE KEY UPDATE
-  order_no=VALUES(order_no), project_id=VALUES(project_id), project_name=VALUES(project_name), location_id=VALUES(location_id),
+  order_no=VALUES(order_no), project_id=VALUES(project_id), project_name=VALUES(project_name), source_region_id=VALUES(source_region_id), location_id=VALUES(location_id),
   location_name=VALUES(location_name), location_text=VALUES(location_text), customer_id=VALUES(customer_id), report_person=VALUES(report_person),
   phone=VALUES(phone), service_source=VALUES(service_source), service_source_name=VALUES(service_source_name), service_type=VALUES(service_type),
   service_type_name=VALUES(service_type_name), repair_status=VALUES(repair_status), repair_status_name=VALUES(repair_status_name),

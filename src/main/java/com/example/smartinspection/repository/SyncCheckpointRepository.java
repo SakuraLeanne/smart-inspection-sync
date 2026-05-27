@@ -16,4 +16,12 @@ public class SyncCheckpointRepository {
     public void saveOrUpdate(String taskCode, int lastMaxId) {
         mysqlJdbcTemplate.update("INSERT INTO cus_sync_task_checkpoint(task_code,last_max_id,last_sync_time) VALUES(?,?,?) ON DUPLICATE KEY UPDATE last_max_id=VALUES(last_max_id),last_sync_time=VALUES(last_sync_time)", taskCode, lastMaxId, java.sql.Timestamp.valueOf(LocalDateTime.now()));
     }
+
+    public LocalDateTime getLastSyncTime(String taskCode) {
+        return mysqlJdbcTemplate.query("SELECT last_sync_time FROM cus_sync_task_checkpoint WHERE task_code=?", rs -> rs.next() && rs.getTimestamp(1) != null ? rs.getTimestamp(1).toLocalDateTime() : null, taskCode);
+    }
+
+    public void saveOrUpdateTime(String taskCode, LocalDateTime lastSyncTime) {
+        mysqlJdbcTemplate.update("INSERT INTO cus_sync_task_checkpoint(task_code,last_max_id,last_sync_time) VALUES(?,?,?) ON DUPLICATE KEY UPDATE last_sync_time=VALUES(last_sync_time)", taskCode, 0, java.sql.Timestamp.valueOf(lastSyncTime));
+    }
 }
