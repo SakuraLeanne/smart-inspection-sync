@@ -27,4 +27,14 @@ public class SyncTriggerController {
         resp.put("triggerTime", LocalDateTime.now().toString());
         return resp;
     }
+
+    @PostMapping("/materials-inventory-request/full")
+    public Map<String, Object> triggerMaterialsInventoryRequestFullSync() {
+        customerServiceSyncJob.syncMaterialsInventoryRequestFull();
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("success", true);
+        resp.put("message", "materials inventory request and detail full sync finished");
+        resp.put("triggerTime", LocalDateTime.now().toString());
+        return resp;
+    }
 }
