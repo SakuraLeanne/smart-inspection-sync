@@ -18,9 +18,13 @@ sync:
   batch-size:
     customer-service: 3000
     customer-service-history: 5000
+    materials-inventory-request: 300
+    materials-inventory-request-detail: 500
   recent-refresh-days:
     customer-service: 90
     customer-service-history: 7
+  throttle-sleep-ms:
+    materials-inventory-request: 100
   schedule:
     customer-service-new: "0 0 1 ? * MON"
     customer-service-history-new: "0 20 1 ? * MON"

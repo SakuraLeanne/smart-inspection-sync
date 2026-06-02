@@ -2,6 +2,7 @@ package com.example.smartinspection.job;
 
 import com.example.smartinspection.service.CustomerServiceHistorySyncService;
 import com.example.smartinspection.service.CustomerServiceSyncService;
+import com.example.smartinspection.service.MaterialsInventoryRequestFullSyncService;
 import com.example.smartinspection.service.OrganizationItemSyncService;
 import org.springframework.stereotype.Component;
 
@@ -10,11 +11,14 @@ public class CustomerServiceSyncJob {
     private final CustomerServiceSyncService customerServiceSyncService;
     private final CustomerServiceHistorySyncService historySyncService;
     private final OrganizationItemSyncService organizationItemSyncService;
+    private final MaterialsInventoryRequestFullSyncService materialsInventoryRequestFullSyncService;
 
-    public CustomerServiceSyncJob(CustomerServiceSyncService c, CustomerServiceHistorySyncService h, OrganizationItemSyncService o) {
+    public CustomerServiceSyncJob(CustomerServiceSyncService c, CustomerServiceHistorySyncService h, OrganizationItemSyncService o,
+                                  MaterialsInventoryRequestFullSyncService m) {
         this.customerServiceSyncService = c;
         this.historySyncService = h;
         this.organizationItemSyncService = o;
+        this.materialsInventoryRequestFullSyncService = m;
     }
 
     public void syncCustomerServiceNew(){ customerServiceSyncService.syncNew(); }
@@ -23,4 +27,5 @@ public class CustomerServiceSyncJob {
     public void refreshCustomerServiceHistoryRecent(){ historySyncService.refreshRecent(); }
     public void syncOrganizationItemFull(){ organizationItemSyncService.syncFullById(); }
     public void syncOrganizationItemIncrement(){ organizationItemSyncService.syncIncrementByUpdateTime(); }
+    public void syncMaterialsInventoryRequestFull(){ materialsInventoryRequestFullSyncService.syncFull(); }
 }
