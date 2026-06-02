@@ -1,22 +1,15 @@
--- 首次全量初始化（推荐）
--- 1) 可选：清空原始表（谨慎）
--- TRUNCATE TABLE cus_raw_customer_service_history;
--- TRUNCATE TABLE cus_raw_customer_service;
+-- 全量同步接口调用说明
+-- 应用启动后，通过 HTTP 接口手动触发全量同步；不再支持定时任务、启动参数触发或断点增量同步。
 
--- 2) 清空增量断点（必须）
-DELETE FROM cus_sync_task_checkpoint
-WHERE task_code IN ('sync_customer_service_new','sync_customer_service_history_new');
+-- 1) 首次使用前，执行 init_sync_tables.sql 创建 5 张原始同步表及 cus_sync_task_log。
 
--- 3) 启动应用并开启全量参数：
--- java -jar app.jar --sync.full-init.enabled=true
--- 如果需要先清空原始表：
--- java -jar app.jar --sync.full-init.enabled=true --sync.full-init.truncate-before-run=true
+-- 2) 单表全量同步：
+-- curl -X POST http://localhost:8080/api/sync/customer-service/full
+-- curl -X POST http://localhost:8080/api/sync/customer-service-history/full
+-- curl -X POST http://localhost:8080/api/sync/organization-item/full
+-- curl -X POST http://localhost:8080/api/sync/materials-inventory-request/full
 
--- 4) 查看执行日志
-SELECT id, task_code, sync_type, status, read_count, write_count, start_time, end_time
-FROM cus_sync_task_log
-ORDER BY id DESC
-LIMIT 20;
+-- 3) 全部原始表全量同步（按组织、工单、工单历史、物料申请/明细顺序执行）：
+-- curl -X POST http://localhost:8080/api/sync/full
 
--- 5) 如希望连接异常时直接启动失败（用于CI/发布门禁），增加参数
--- java -jar app.jar --sync.full-init.enabled=true --sync.full-init.fail-fast=true
+-- 4) 执行 verify_sync.sql 查看原始同步表行数、最大 source_id 与最近任务日志。

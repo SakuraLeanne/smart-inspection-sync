@@ -18,15 +18,11 @@ public class SqlServerOrganizationItemReader {
         this.convertService = convertService;
     }
 
-    public List<OrganizationItemRow> readNewById(int lastMaxId, int limit) {
+    public List<OrganizationItemRow> readByIdGreaterThan(int lastMaxId, int limit) {
         String sql = "SELECT TOP (?) Id,ParentId,Name,Code,ItemType,Address,Tel,Remark,RegionId,BuildingId,CompanyId,GroupId,UnitId,CityId,BuildingType,Floors,Floor,Purpose,HouseStatus,HouseState,HouseTypeId,Discriminator,HierarchicalPath,Contact,ContactPhone,Phone,Email,IsVirtual,IsDisabled,IsRentable,IsRented,IsSold,IsLeaseOut,Uuid,Number,TerminalCode,BrandCode,CheckInDate,HandoverDate,SoldTime,UpdateTime FROM dbo.OrganizationItem WHERE Id > ? ORDER BY Id ASC";
         return sqlServerJdbcTemplate.query(sql, (rs, rn) -> mapRow(rs), limit, lastMaxId);
     }
 
-    public List<OrganizationItemRow> readByUpdateTime(String lastSyncTime, int limit) {
-        String sql = "SELECT TOP (?) Id,ParentId,Name,Code,ItemType,Address,Tel,Remark,RegionId,BuildingId,CompanyId,GroupId,UnitId,CityId,BuildingType,Floors,Floor,Purpose,HouseStatus,HouseState,HouseTypeId,Discriminator,HierarchicalPath,Contact,ContactPhone,Phone,Email,IsVirtual,IsDisabled,IsRentable,IsRented,IsSold,IsLeaseOut,Uuid,Number,TerminalCode,BrandCode,CheckInDate,HandoverDate,SoldTime,UpdateTime FROM dbo.OrganizationItem WHERE UpdateTime > ? ORDER BY UpdateTime ASC, Id ASC";
-        return sqlServerJdbcTemplate.query(sql, (rs, rn) -> mapRow(rs), limit, lastSyncTime);
-    }
 
     private OrganizationItemRow mapRow(java.sql.ResultSet rs) throws java.sql.SQLException {
         OrganizationItemRow row = new OrganizationItemRow();

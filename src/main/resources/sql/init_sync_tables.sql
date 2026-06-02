@@ -1,5 +1,5 @@
 -- 目标表DDL（MySQL 8 / utf8mb4）
--- 按需求创建四张表
+-- 创建 5 张 SQL Server 原始同步表及执行日志表
 CREATE TABLE IF NOT EXISTS cus_raw_customer_service (
   source_id int NOT NULL,
   voucher_no varchar(255) DEFAULT NULL,
@@ -36,9 +36,7 @@ CREATE TABLE IF NOT EXISTS cus_raw_customer_service_history (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
-DROP TABLE IF EXISTS `cus_raw_organization_item`;
-
-CREATE TABLE `cus_raw_organization_item` (
+CREATE TABLE IF NOT EXISTS `cus_raw_organization_item` (
   `source_id` int NOT NULL COMMENT 'SQL Server OrganizationItem.Id',
   `parent_id` int DEFAULT NULL COMMENT '父级ID',
   `name` varchar(255) DEFAULT NULL COMMENT '名称，对应OrganizationItem.Name',
@@ -94,14 +92,6 @@ CREATE TABLE `cus_raw_organization_item` (
   KEY `idx_update_time` (`update_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='物业系统组织项目位置原始同步表';
 
-CREATE TABLE IF NOT EXISTS cus_sync_task_checkpoint (
-  task_code varchar(100) NOT NULL,
-  last_max_id int DEFAULT 0,
-  last_sync_time datetime DEFAULT NULL,
-  update_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (task_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 CREATE TABLE IF NOT EXISTS cus_sync_task_log (
   id bigint NOT NULL AUTO_INCREMENT,
   task_code varchar(100) NOT NULL,
@@ -116,12 +106,6 @@ CREATE TABLE IF NOT EXISTS cus_sync_task_log (
   PRIMARY KEY (id), KEY idx_task_code_time (task_code,start_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- SQL Server 2008 分页备用：ROW_NUMBER()
--- SELECT * FROM (
---   SELECT ROW_NUMBER() OVER(ORDER BY Id ASC) AS rn, *
---   FROM dbo.CustomerService
---   WHERE AcceptedDate >= DATEADD(day,-?,GETDATE())
--- ) t WHERE t.rn > ? AND t.rn <= ?;
 
 CREATE TABLE IF NOT EXISTS `cus_raw_materials_inventory_request` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',

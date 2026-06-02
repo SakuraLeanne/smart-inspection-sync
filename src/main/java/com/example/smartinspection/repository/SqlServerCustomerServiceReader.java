@@ -11,12 +11,8 @@ import org.springframework.stereotype.Repository;
 public class SqlServerCustomerServiceReader {
     private final @Qualifier("sqlServerJdbcTemplate") JdbcTemplate sqlServerJdbcTemplate; private final SyncDateConvertService convertService;
     public SqlServerCustomerServiceReader(@Qualifier("sqlServerJdbcTemplate") JdbcTemplate sqlServerJdbcTemplate, SyncDateConvertService convertService) { this.sqlServerJdbcTemplate = sqlServerJdbcTemplate; this.convertService = convertService; }
-    public List<CustomerServiceRow> readNewById(int lastMaxId, int limit) {
+    public List<CustomerServiceRow> readByIdGreaterThan(int lastMaxId, int limit) {
         String sql = "SELECT TOP (?) * FROM dbo.CustomerService WHERE Id > ? ORDER BY Id ASC";
         return sqlServerJdbcTemplate.query(sql, (rs, rn) -> MapperUtils.mapCustomerService(rs, convertService), limit, lastMaxId);
-    }
-    public List<CustomerServiceRow> readRecent(int days, int offset, int limit) {
-        String sql = "SELECT * FROM dbo.CustomerService WHERE AcceptedDate >= DATEADD(day, -?, GETDATE()) ORDER BY Id ASC OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
-        return sqlServerJdbcTemplate.query(sql, (rs, rn) -> MapperUtils.mapCustomerService(rs, convertService), days, offset, limit);
     }
 }

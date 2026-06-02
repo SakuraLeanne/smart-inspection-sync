@@ -18,27 +18,17 @@ sync:
   batch-size:
     customer-service: 3000
     customer-service-history: 5000
+    organization-item: 3000
     materials-inventory-request: 300
     materials-inventory-request-detail: 500
-  recent-refresh-days:
-    customer-service: 90
-    customer-service-history: 7
   throttle-sleep-ms:
     materials-inventory-request: 100
-  schedule:
-    customer-service-new: "0 0 1 ? * MON"
-    customer-service-history-new: "0 20 1 ? * MON"
-    customer-service-recent: "0 40 1 ? * MON"
-    customer-service-history-recent: "0 0 2 ? * MON"
   sqlserver:
     use-row-number-pagination: false
-  full-init:
-    enabled: false
-    truncate-before-run: false
-    fail-fast: false
 
-# 首次全量示例
-# java -jar app.jar --sync.full-init.enabled=true
-# java -jar app.jar --sync.full-init.enabled=true --sync.full-init.truncate-before-run=true
-# 若数据库暂不可达，是否阻断应用启动（默认 false）
-# --sync.full-init.fail-fast=true
+# 全量同步接口：
+# curl -X POST http://localhost:8080/api/sync/customer-service/full
+# curl -X POST http://localhost:8080/api/sync/customer-service-history/full
+# curl -X POST http://localhost:8080/api/sync/organization-item/full
+# curl -X POST http://localhost:8080/api/sync/materials-inventory-request/full
+# curl -X POST http://localhost:8080/api/sync/full
