@@ -4,8 +4,10 @@ import com.example.smartinspection.domain.CustomerServiceHistoryRow;
 import com.example.smartinspection.repository.MysqlCustomerServiceHistoryWriter;
 import com.example.smartinspection.repository.SqlServerCustomerServiceHistoryReader;
 import com.example.smartinspection.repository.SyncTaskLogRepository;
+
 import java.util.List;
 import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 

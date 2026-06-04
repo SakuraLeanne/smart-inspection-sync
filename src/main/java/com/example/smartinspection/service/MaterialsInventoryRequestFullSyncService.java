@@ -7,7 +7,9 @@ import com.example.smartinspection.repository.MysqlMaterialsInventoryRequestWrit
 import com.example.smartinspection.repository.SqlServerMaterialsInventoryRequestDetailReader;
 import com.example.smartinspection.repository.SqlServerMaterialsInventoryRequestReader;
 import com.example.smartinspection.repository.SyncTaskLogRepository;
+
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 

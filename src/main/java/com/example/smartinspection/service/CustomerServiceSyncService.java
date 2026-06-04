@@ -4,8 +4,10 @@ import com.example.smartinspection.domain.CustomerServiceRow;
 import com.example.smartinspection.repository.MysqlCustomerServiceWriter;
 import com.example.smartinspection.repository.SqlServerCustomerServiceReader;
 import com.example.smartinspection.repository.SyncTaskLogRepository;
+
 import java.util.List;
 import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 

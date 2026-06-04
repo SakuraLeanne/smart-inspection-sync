@@ -4,8 +4,10 @@ import com.example.smartinspection.domain.OrganizationItemRow;
 import com.example.smartinspection.repository.MysqlOrganizationItemWriter;
 import com.example.smartinspection.repository.SqlServerOrganizationItemReader;
 import com.example.smartinspection.repository.SyncTaskLogRepository;
+
 import java.util.List;
 import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
