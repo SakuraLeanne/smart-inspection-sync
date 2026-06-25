@@ -20,6 +20,11 @@ sync:
     materials-inventory-request-detail: 500
   throttle-sleep-ms:
     materials-inventory-request: 100
+  incremental:
+    customer-service:
+      create-time-lookback-days: 14
+    materials-inventory-request:
+      request-date-lookback-days: 30
   sqlserver:
     use-row-number-pagination: false
 
@@ -29,3 +34,14 @@ sync:
 # curl -X POST http://localhost:8080/api/sync/organization-item/full
 # curl -X POST http://localhost:8080/api/sync/materials-inventory-request/full
 # curl -X POST http://localhost:8080/api/sync/full
+
+# 增量同步接口及方案：
+# CustomerService：Id 高水位 + CreateTime 回溯窗口。
+# curl -X POST http://localhost:8080/api/sync/customer-service/incremental
+# CustomerServiceHistory：Id 高水位。
+# curl -X POST http://localhost:8080/api/sync/customer-service-history/incremental
+# OrganizationItem：UpdateTime 非空使用 UpdateTime+Id，UpdateTime 为空使用 Id 高水位。
+# curl -X POST http://localhost:8080/api/sync/organization-item/incremental
+# MaterialsInventoryRequest/Detail：主表 Id 高水位 + RequestDate 回溯；明细 Id 高水位 + 跟随主表 Id 重刷。
+# curl -X POST http://localhost:8080/api/sync/materials-inventory-request/incremental
+# curl -X POST http://localhost:8080/api/sync/incremental
