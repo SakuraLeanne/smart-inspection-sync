@@ -35,10 +35,24 @@ public class SyncTriggerController {
         return success("customer service full sync finished");
     }
 
+    @PostMapping("/customer-service/incremental")
+    public Map<String, Object> triggerCustomerServiceIncrementalSync() {
+        // 增量方案：Id 高水位捕获新增工单，CreateTime 回溯窗口重刷近期工单变化。
+        customerServiceSyncService.syncIncremental();
+        return success("customer service incremental sync finished: Id watermark + CreateTime lookback");
+    }
+
     @PostMapping("/customer-service-history/full")
     public Map<String, Object> triggerCustomerServiceHistoryFullSync() {
         historySyncService.syncFull();
         return success("customer service history full sync finished");
+    }
+
+    @PostMapping("/customer-service-history/incremental")
+    public Map<String, Object> triggerCustomerServiceHistoryIncrementalSync() {
+        // 增量方案：历史流水表按 Id 高水位同步，默认只追加不回刷历史记录。
+        historySyncService.syncIncremental();
+        return success("customer service history incremental sync finished: Id watermark");
     }
 
     @PostMapping("/organization-item/full")
@@ -47,10 +61,24 @@ public class SyncTriggerController {
         return success("organization item full sync finished");
     }
 
+    @PostMapping("/organization-item/incremental")
+    public Map<String, Object> triggerOrganizationItemIncrementalSync() {
+        // 增量方案：UpdateTime 非空走 UpdateTime+Id 水位；UpdateTime 为空走 Id 水位捕获新增。
+        organizationItemSyncService.syncIncremental();
+        return success("organization item incremental sync finished: UpdateTime+Id and null-UpdateTime Id watermarks");
+    }
+
     @PostMapping("/materials-inventory-request/full")
     public Map<String, Object> triggerMaterialsInventoryRequestFullSync() {
         materialsInventoryRequestFullSyncService.syncFull();
         return success("materials inventory request and detail full sync finished");
+    }
+
+    @PostMapping("/materials-inventory-request/incremental")
+    public Map<String, Object> triggerMaterialsInventoryRequestIncrementalSync() {
+        // 增量方案：主表 Id 高水位 + RequestDate 回溯；明细 Id 高水位 + 跟随本批主表 Id 重刷。
+        materialsInventoryRequestFullSyncService.syncIncremental();
+        return success("materials inventory request and detail incremental sync finished: request Id watermark + RequestDate lookback, detail Id watermark + parent refresh");
     }
 
     @PostMapping("/full")
@@ -60,6 +88,16 @@ public class SyncTriggerController {
         historySyncService.syncFull();
         materialsInventoryRequestFullSyncService.syncFull();
         return success("all full sync tasks finished");
+    }
+
+    @PostMapping("/incremental")
+    public Map<String, Object> triggerAllIncrementalSync() {
+        // 全量顺序的增量版本：先同步组织，再同步工单与历史，最后同步物料主表和明细。
+        organizationItemSyncService.syncIncremental();
+        customerServiceSyncService.syncIncremental();
+        historySyncService.syncIncremental();
+        materialsInventoryRequestFullSyncService.syncIncremental();
+        return success("all incremental sync tasks finished");
     }
 
     private Map<String, Object> success(String message) {
