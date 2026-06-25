@@ -10,11 +10,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CustomerServiceSyncService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CustomerServiceSyncService.class);
+
     private final SqlServerCustomerServiceReader reader;
     private final MysqlCustomerServiceWriter writer;
     private final SyncTaskLogRepository log;
@@ -75,6 +79,8 @@ public class CustomerServiceSyncService {
         int write = 0;
         try {
             int last = checkpointRepository.getOrDefault(task, "CustomerService", "ID").getLastId();
+            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=ID_WATERMARK_CREATE_TIME_LOOKBACK, lastId={}, createTimeLookbackDays={}",
+                    task, batchNo, last, createTimeLookbackDays);
             while (true) {
                 List<CustomerServiceRow> rows = reader.readByIdGreaterThan(last, batchSize);
                 if (rows.isEmpty()) {
@@ -88,6 +94,7 @@ public class CustomerServiceSyncService {
             }
 
             LocalDateTime since = LocalDateTime.now().minusDays(createTimeLookbackDays);
+            LOGGER.info("Replay customer service lookback task={}, batchNo={}, since={}", task, batchNo, since);
             int lookbackLastId = 0;
             while (true) {
                 List<CustomerServiceRow> rows = reader.readByCreateTimeSince(since, lookbackLastId, batchSize);
@@ -100,8 +107,12 @@ public class CustomerServiceSyncService {
                 lookbackLastId = Math.max(lookbackLastId, rows.get(rows.size() - 1).getId());
             }
             log.finishSuccess(logId, read, write);
+            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalLastId={}, lookbackLastId={}",
+                    task, batchNo, read, write, last, lookbackLastId);
         } catch (RuntimeException e) {
             log.finishFail(logId, read, write, e.getMessage());
+            LOGGER.error("Finish incremental sync task={}, batchNo={}, status=FAILED, read={}, write={}",
+                    task, batchNo, read, write, e);
             throw e;
         }
     }

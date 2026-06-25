@@ -9,11 +9,15 @@ import com.example.smartinspection.repository.SyncTaskLogRepository;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class CustomerServiceHistorySyncService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CustomerServiceHistorySyncService.class);
+
     private final SqlServerCustomerServiceHistoryReader reader;
     private final MysqlCustomerServiceHistoryWriter writer;
     private final SyncTaskLogRepository log;
@@ -69,6 +73,8 @@ public class CustomerServiceHistorySyncService {
         int write = 0;
         int last = checkpointRepository.getOrDefault(task, "CustomerServiceHistory", "ID").getLastId();
         try {
+            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=ID_WATERMARK, lastId={}",
+                    task, batchNo, last);
             while (true) {
                 List<CustomerServiceHistoryRow> rows = reader.readByIdGreaterThan(last, batchSize);
                 if (rows.isEmpty()) {
@@ -81,8 +87,12 @@ public class CustomerServiceHistorySyncService {
                 checkpointRepository.save(task, "CustomerServiceHistory", "ID", last, null);
             }
             log.finishSuccess(logId, read, write);
+            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalLastId={}",
+                    task, batchNo, read, write, last);
         } catch (RuntimeException e) {
             log.finishFail(logId, read, write, e.getMessage());
+            LOGGER.error("Finish incremental sync task={}, batchNo={}, status=FAILED, read={}, write={}",
+                    task, batchNo, read, write, e);
             throw e;
         }
     }

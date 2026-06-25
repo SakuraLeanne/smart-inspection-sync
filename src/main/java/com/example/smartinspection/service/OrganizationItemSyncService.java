@@ -11,11 +11,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class OrganizationItemSyncService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(OrganizationItemSyncService.class);
+
     private final SqlServerOrganizationItemReader reader;
     private final MysqlOrganizationItemWriter writer;
     private final SyncTaskLogRepository log;
@@ -76,6 +80,8 @@ public class OrganizationItemSyncService {
                     ? LocalDateTime.of(1900, 1, 1, 0, 0)
                     : updateCheckpoint.getLastTime();
             int lastUpdateId = updateCheckpoint.getLastId() == null ? 0 : updateCheckpoint.getLastId();
+            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=UPDATE_TIME_ID_AND_NULL_UPDATE_TIME_ID, lastUpdateTime={}, lastUpdateId={}",
+                    task, batchNo, lastTime, lastUpdateId);
             while (true) {
                 List<OrganizationItemRow> rows = reader.readByUpdateTimeAfter(lastTime, lastUpdateId, batchSize);
                 if (rows.isEmpty()) {
@@ -91,6 +97,8 @@ public class OrganizationItemSyncService {
             }
 
             int lastNullId = checkpointRepository.getOrDefault(task, "OrganizationItem", "NULL_UPDATE_TIME_ID").getLastId();
+            LOGGER.info("Replay null UpdateTime organization item task={}, batchNo={}, lastNullUpdateTimeId={}",
+                    task, batchNo, lastNullId);
             while (true) {
                 List<OrganizationItemRow> rows = reader.readNullUpdateTimeByIdGreaterThan(lastNullId, batchSize);
                 if (rows.isEmpty()) {
@@ -103,8 +111,12 @@ public class OrganizationItemSyncService {
                 checkpointRepository.save(task, "OrganizationItem", "NULL_UPDATE_TIME_ID", lastNullId, null);
             }
             log.finishSuccess(logId, read, write);
+            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalUpdateTime={}, finalUpdateId={}, finalNullUpdateTimeId={}",
+                    task, batchNo, read, write, lastTime, lastUpdateId, lastNullId);
         } catch (RuntimeException e) {
             log.finishFail(logId, read, write, e.getMessage());
+            LOGGER.error("Finish incremental sync task={}, batchNo={}, status=FAILED, read={}, write={}",
+                    task, batchNo, read, write, e);
             throw e;
         }
     }

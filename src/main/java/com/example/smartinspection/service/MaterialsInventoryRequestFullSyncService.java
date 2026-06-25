@@ -16,11 +16,15 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MaterialsInventoryRequestFullSyncService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MaterialsInventoryRequestFullSyncService.class);
+
     private final SqlServerMaterialsInventoryRequestReader requestReader;
     private final MysqlMaterialsInventoryRequestWriter requestWriter;
     private final SqlServerMaterialsInventoryRequestDetailReader detailReader;
@@ -64,8 +68,10 @@ public class MaterialsInventoryRequestFullSyncService {
      * 主表本批命中的 Id 会传给明细重刷，覆盖明细无更新时间但随主表业务动作发生修改的场景。
      */
     public void syncIncremental() {
+        LOGGER.info("Start materials inventory incremental sync, requestStrategy=ID_WATERMARK_REQUEST_DATE_LOOKBACK, detailStrategy=ID_WATERMARK_PARENT_REFRESH");
         Set<Integer> changedRequestIds = syncRequestsIncremental();
         syncDetailsIncremental(changedRequestIds);
+        LOGGER.info("Finish materials inventory incremental sync, changedRequestCount={}", changedRequestIds.size());
     }
 
     private void syncRequestsFull() {
@@ -129,6 +135,8 @@ public class MaterialsInventoryRequestFullSyncService {
         Set<Integer> changedRequestIds = new LinkedHashSet<>();
         try {
             int last = checkpointRepository.getOrDefault(task, "MaterialsInventoryRequest", "ID").getLastId();
+            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=ID_WATERMARK_REQUEST_DATE_LOOKBACK, lastId={}, requestDateLookbackDays={}",
+                    task, batchNo, last, requestDateLookbackDays);
             while (true) {
                 List<MaterialsInventoryRequestRow> rows = requestReader.readByIdGreaterThan(last, requestBatchSize);
                 if (rows.isEmpty()) {
@@ -144,6 +152,8 @@ public class MaterialsInventoryRequestFullSyncService {
             }
 
             LocalDateTime since = LocalDateTime.now().minusDays(requestDateLookbackDays);
+            LOGGER.info("Replay materials inventory request lookback task={}, batchNo={}, since={}",
+                    task, batchNo, since);
             int lookbackLastId = 0;
             while (true) {
                 List<MaterialsInventoryRequestRow> rows = requestReader.readByRequestDateSince(since, lookbackLastId, requestBatchSize);
@@ -158,9 +168,13 @@ public class MaterialsInventoryRequestFullSyncService {
                 sleepQuietly();
             }
             log.finishSuccess(logId, read, write);
+            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalLastId={}, lookbackLastId={}, changedRequestCount={}",
+                    task, batchNo, read, write, last, lookbackLastId, changedRequestIds.size());
             return changedRequestIds;
         } catch (RuntimeException e) {
             log.finishFail(logId, read, write, e.getMessage());
+            LOGGER.error("Finish incremental sync task={}, batchNo={}, status=FAILED, read={}, write={}, changedRequestCount={}",
+                    task, batchNo, read, write, changedRequestIds.size(), e);
             throw e;
         }
     }
@@ -173,6 +187,8 @@ public class MaterialsInventoryRequestFullSyncService {
         int write = 0;
         int last = checkpointRepository.getOrDefault(task, "MaterialsInventoryRequestDetail", "ID").getLastId();
         try {
+            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=ID_WATERMARK_PARENT_REFRESH, lastId={}, parentRefreshCount={}",
+                    task, batchNo, last, changedRequestIds.size());
             while (true) {
                 List<MaterialsInventoryRequestDetailRow> rows = detailReader.readByIdGreaterThan(last, detailBatchSize);
                 if (rows.isEmpty()) {
@@ -199,8 +215,12 @@ public class MaterialsInventoryRequestFullSyncService {
                 sleepQuietly();
             }
             log.finishSuccess(logId, read, write);
+            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalLastId={}, parentRefreshCount={}",
+                    task, batchNo, read, write, last, changedRequestIds.size());
         } catch (RuntimeException e) {
             log.finishFail(logId, read, write, e.getMessage());
+            LOGGER.error("Finish incremental sync task={}, batchNo={}, status=FAILED, read={}, write={}, parentRefreshCount={}",
+                    task, batchNo, read, write, changedRequestIds.size(), e);
             throw e;
         }
     }
