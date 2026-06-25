@@ -35,10 +35,24 @@ public class SyncTriggerController {
         return success("customer service full sync finished");
     }
 
+    @PostMapping("/customer-service/incremental")
+    public Map<String, Object> triggerCustomerServiceIncrementalSync() {
+        // 增量方案：仅按 CustomerService.Id 高水位同步新增工单，不回刷已同步工单。
+        customerServiceSyncService.syncIncremental();
+        return success("customer service incremental sync finished: Id watermark only");
+    }
+
     @PostMapping("/customer-service-history/full")
     public Map<String, Object> triggerCustomerServiceHistoryFullSync() {
         historySyncService.syncFull();
         return success("customer service history full sync finished");
+    }
+
+    @PostMapping("/customer-service-history/incremental")
+    public Map<String, Object> triggerCustomerServiceHistoryIncrementalSync() {
+        // 增量方案：历史流水表按 Id 高水位同步，默认只追加不回刷历史记录。
+        historySyncService.syncIncremental();
+        return success("customer service history incremental sync finished: Id watermark");
     }
 
     @PostMapping("/organization-item/full")
@@ -47,10 +61,24 @@ public class SyncTriggerController {
         return success("organization item full sync finished");
     }
 
+    @PostMapping("/organization-item/incremental")
+    public Map<String, Object> triggerOrganizationItemIncrementalSync() {
+        // 增量方案：仅按 OrganizationItem.Id 高水位同步新增组织项，不根据 UpdateTime 回刷已同步组织项。
+        organizationItemSyncService.syncIncremental();
+        return success("organization item incremental sync finished: Id watermark only");
+    }
+
     @PostMapping("/materials-inventory-request/full")
     public Map<String, Object> triggerMaterialsInventoryRequestFullSync() {
         materialsInventoryRequestFullSyncService.syncFull();
         return success("materials inventory request and detail full sync finished");
+    }
+
+    @PostMapping("/materials-inventory-request/incremental")
+    public Map<String, Object> triggerMaterialsInventoryRequestIncrementalSync() {
+        // 增量方案：仅按物料主表和明细表各自 Id 高水位同步新增数据，不回刷已同步数据。
+        materialsInventoryRequestFullSyncService.syncIncremental();
+        return success("materials inventory request and detail incremental sync finished: Id watermarks only");
     }
 
     @PostMapping("/full")
@@ -60,6 +88,16 @@ public class SyncTriggerController {
         historySyncService.syncFull();
         materialsInventoryRequestFullSyncService.syncFull();
         return success("all full sync tasks finished");
+    }
+
+    @PostMapping("/incremental")
+    public Map<String, Object> triggerAllIncrementalSync() {
+        // 全量顺序的增量版本：先同步组织，再同步工单与历史，最后同步物料主表和明细。
+        organizationItemSyncService.syncIncremental();
+        customerServiceSyncService.syncIncremental();
+        historySyncService.syncIncremental();
+        materialsInventoryRequestFullSyncService.syncIncremental();
+        return success("all incremental sync tasks finished");
     }
 
     private Map<String, Object> success(String message) {

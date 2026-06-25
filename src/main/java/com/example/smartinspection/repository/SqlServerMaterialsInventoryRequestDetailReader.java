@@ -22,30 +22,32 @@ public class SqlServerMaterialsInventoryRequestDetailReader {
 
     public List<MaterialsInventoryRequestDetailRow> readByIdGreaterThan(int lastMaxId, int limit) {
         String sql = "SELECT TOP (?) " + COLUMNS + " FROM dbo.MaterialsInventoryRequestDetail WHERE Id > ? ORDER BY Id ASC";
-        return sqlServerJdbcTemplate.query(sql, (rs, rn) -> {
-            MaterialsInventoryRequestDetailRow row = new MaterialsInventoryRequestDetailRow();
-            row.setId(rs.getInt("Id"));
-            row.setMaterialsInventoryRequestId(rs.getInt("MaterialsInventoryRequestId"));
-            row.setMaterialId(rs.getInt("MaterialId"));
-            row.setMaterialsInventoryId((Integer) rs.getObject("MaterialsInventoryId"));
-            row.setSourceWarehouseId((Integer) rs.getObject("SourceWarehouseId"));
-            row.setSourceWarehouseAreaId((Integer) rs.getObject("SourceWarehouseAreaId"));
-            row.setTargetWarehouseId((Integer) rs.getObject("TargetWarehouseId"));
-            row.setTargetWarehouseAreaId((Integer) rs.getObject("TargetWarehouseAreaId"));
-            row.setRequestCount(rs.getBigDecimal("Count"));
-            row.setActualCount(rs.getBigDecimal("ActualCount"));
-            row.setBuyingPrice(rs.getBigDecimal("BuyingPrice"));
-            row.setSupplierPrice(rs.getBigDecimal("SupplierPrice"));
-            row.setSalePrice(rs.getBigDecimal("SalePrice"));
-            row.setTransferPrice(rs.getBigDecimal("TransferPrice"));
-            row.setSettlementPrice(rs.getBigDecimal("SettlementPrice"));
-            row.setWholesalePrice(rs.getBigDecimal("WholesalePrice"));
-            row.setTaxation(rs.getBigDecimal("Taxation"));
-            row.setReturnPrice(rs.getBigDecimal("ReturnPrice"));
-            row.setRemark(rs.getString("Remark"));
-            row.setTransferSupplierId((Integer) rs.getObject("TransferSupplierId"));
-            row.setCreatedDate(convertService.toLocalDateTime(rs.getTimestamp("CreatedDate")));
-            return row;
-        }, limit, lastMaxId);
+        return sqlServerJdbcTemplate.query(sql, (rs, rn) -> mapRow(rs), limit, lastMaxId);
+    }
+
+    private MaterialsInventoryRequestDetailRow mapRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        MaterialsInventoryRequestDetailRow row = new MaterialsInventoryRequestDetailRow();
+        row.setId(rs.getInt("Id"));
+        row.setMaterialsInventoryRequestId(rs.getInt("MaterialsInventoryRequestId"));
+        row.setMaterialId(rs.getInt("MaterialId"));
+        row.setMaterialsInventoryId((Integer) rs.getObject("MaterialsInventoryId"));
+        row.setSourceWarehouseId((Integer) rs.getObject("SourceWarehouseId"));
+        row.setSourceWarehouseAreaId((Integer) rs.getObject("SourceWarehouseAreaId"));
+        row.setTargetWarehouseId((Integer) rs.getObject("TargetWarehouseId"));
+        row.setTargetWarehouseAreaId((Integer) rs.getObject("TargetWarehouseAreaId"));
+        row.setRequestCount(rs.getBigDecimal("Count"));
+        row.setActualCount(rs.getBigDecimal("ActualCount"));
+        row.setBuyingPrice(rs.getBigDecimal("BuyingPrice"));
+        row.setSupplierPrice(rs.getBigDecimal("SupplierPrice"));
+        row.setSalePrice(rs.getBigDecimal("SalePrice"));
+        row.setTransferPrice(rs.getBigDecimal("TransferPrice"));
+        row.setSettlementPrice(rs.getBigDecimal("SettlementPrice"));
+        row.setWholesalePrice(rs.getBigDecimal("WholesalePrice"));
+        row.setTaxation(rs.getBigDecimal("Taxation"));
+        row.setReturnPrice(rs.getBigDecimal("ReturnPrice"));
+        row.setRemark(rs.getString("Remark"));
+        row.setTransferSupplierId((Integer) rs.getObject("TransferSupplierId"));
+        row.setCreatedDate(convertService.toLocalDateTime(rs.getTimestamp("CreatedDate")));
+        return row;
     }
 }

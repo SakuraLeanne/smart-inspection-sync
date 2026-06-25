@@ -6,20 +6,26 @@ import com.example.smartinspection.repository.MysqlMaterialsInventoryRequestDeta
 import com.example.smartinspection.repository.MysqlMaterialsInventoryRequestWriter;
 import com.example.smartinspection.repository.SqlServerMaterialsInventoryRequestDetailReader;
 import com.example.smartinspection.repository.SqlServerMaterialsInventoryRequestReader;
+import com.example.smartinspection.repository.SyncCheckpointRepository;
 import com.example.smartinspection.repository.SyncTaskLogRepository;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MaterialsInventoryRequestFullSyncService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MaterialsInventoryRequestFullSyncService.class);
+
     private final SqlServerMaterialsInventoryRequestReader requestReader;
     private final MysqlMaterialsInventoryRequestWriter requestWriter;
     private final SqlServerMaterialsInventoryRequestDetailReader detailReader;
     private final MysqlMaterialsInventoryRequestDetailWriter detailWriter;
     private final SyncTaskLogRepository log;
+    private final SyncCheckpointRepository checkpointRepository;
 
     @Value("${sync.batch-size.materials-inventory-request:300}")
     private int requestBatchSize;
@@ -34,17 +40,30 @@ public class MaterialsInventoryRequestFullSyncService {
                                                     MysqlMaterialsInventoryRequestWriter requestWriter,
                                                     SqlServerMaterialsInventoryRequestDetailReader detailReader,
                                                     MysqlMaterialsInventoryRequestDetailWriter detailWriter,
-                                                    SyncTaskLogRepository log) {
+                                                    SyncTaskLogRepository log,
+                                                    SyncCheckpointRepository checkpointRepository) {
         this.requestReader = requestReader;
         this.requestWriter = requestWriter;
         this.detailReader = detailReader;
         this.detailWriter = detailWriter;
         this.log = log;
+        this.checkpointRepository = checkpointRepository;
     }
 
     public void syncFull() {
         syncRequestsFull();
         syncDetailsFull();
+    }
+
+    /**
+     * 增量方案：物料主表和明细表都仅按各自 Id 高水位同步新增数据。
+     * 已同步的主表和明细即使源端后续修改，也不按 RequestDate 或父单关系回刷。
+     */
+    public void syncIncremental() {
+        LOGGER.info("Start materials inventory incremental sync, requestStrategy=ID_WATERMARK_ONLY, detailStrategy=ID_WATERMARK_ONLY");
+        syncRequestsIncremental();
+        syncDetailsIncremental();
+        LOGGER.info("Finish materials inventory incremental sync");
     }
 
     private void syncRequestsFull() {
@@ -95,6 +114,72 @@ public class MaterialsInventoryRequestFullSyncService {
             log.finishSuccess(logId, read, write);
         } catch (RuntimeException e) {
             log.finishFail(logId, read, write, e.getMessage());
+            throw e;
+        }
+    }
+
+    private void syncRequestsIncremental() {
+        String task = "sync_materials_inventory_request_incremental";
+        String batchNo = newBatchNo();
+        long logId = log.start(task, batchNo, "INCREMENTAL");
+        int read = 0;
+        int write = 0;
+        int last = checkpointRepository.getOrDefault(task, "MaterialsInventoryRequest", "ID").getLastId();
+        try {
+            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=ID_WATERMARK_ONLY, lastId={}",
+                    task, batchNo, last);
+            while (true) {
+                List<MaterialsInventoryRequestRow> rows = requestReader.readByIdGreaterThan(last, requestBatchSize);
+                if (rows.isEmpty()) {
+                    break;
+                }
+                read += rows.size();
+                requestWriter.upsertBatch(rows);
+                write += rows.size();
+                last = Math.max(last, rows.get(rows.size() - 1).getId());
+                checkpointRepository.save(task, "MaterialsInventoryRequest", "ID", last, null);
+                sleepQuietly();
+            }
+            log.finishSuccess(logId, read, write);
+            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalLastId={}",
+                    task, batchNo, read, write, last);
+        } catch (RuntimeException e) {
+            log.finishFail(logId, read, write, e.getMessage());
+            LOGGER.error("Finish incremental sync task={}, batchNo={}, status=FAILED, read={}, write={}",
+                    task, batchNo, read, write, e);
+            throw e;
+        }
+    }
+
+    private void syncDetailsIncremental() {
+        String task = "sync_materials_inventory_request_detail_incremental";
+        String batchNo = newBatchNo();
+        long logId = log.start(task, batchNo, "INCREMENTAL");
+        int read = 0;
+        int write = 0;
+        int last = checkpointRepository.getOrDefault(task, "MaterialsInventoryRequestDetail", "ID").getLastId();
+        try {
+            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=ID_WATERMARK_ONLY, lastId={}",
+                    task, batchNo, last);
+            while (true) {
+                List<MaterialsInventoryRequestDetailRow> rows = detailReader.readByIdGreaterThan(last, detailBatchSize);
+                if (rows.isEmpty()) {
+                    break;
+                }
+                read += rows.size();
+                detailWriter.upsertBatch(rows);
+                write += rows.size();
+                last = Math.max(last, rows.get(rows.size() - 1).getId());
+                checkpointRepository.save(task, "MaterialsInventoryRequestDetail", "ID", last, null);
+                sleepQuietly();
+            }
+            log.finishSuccess(logId, read, write);
+            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalLastId={}",
+                    task, batchNo, read, write, last);
+        } catch (RuntimeException e) {
+            log.finishFail(logId, read, write, e.getMessage());
+            LOGGER.error("Finish incremental sync task={}, batchNo={}, status=FAILED, read={}, write={}",
+                    task, batchNo, read, write, e);
             throw e;
         }
     }

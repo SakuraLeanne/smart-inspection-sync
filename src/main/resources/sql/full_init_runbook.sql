@@ -1,5 +1,5 @@
 -- 全量同步接口调用说明
--- 应用启动后，通过 HTTP 接口手动触发全量同步；不再支持定时任务、启动参数触发或断点增量同步。
+-- 应用启动后，通过 HTTP 接口手动触发同步；当前支持全量同步和基于 cus_sync_checkpoint 的增量同步。
 
 -- 1) 首次使用前，执行 init_sync_tables.sql 创建 5 张原始同步表及 cus_sync_task_log。
 
@@ -13,3 +13,17 @@
 -- curl -X POST http://localhost:8080/api/sync/full
 
 -- 4) 执行 verify_sync.sql 查看原始同步表行数、最大 source_id 与最近任务日志。
+
+-- 5) 单表增量同步：
+-- 增量同步仅同步源表 Id 大于上次成功水位的新增数据；已同步数据不回刷、不覆盖。
+-- CustomerService：Id 高水位。
+-- curl -X POST http://localhost:8080/api/sync/customer-service/incremental
+-- CustomerServiceHistory：Id 高水位。
+-- curl -X POST http://localhost:8080/api/sync/customer-service-history/incremental
+-- OrganizationItem：Id 高水位。
+-- curl -X POST http://localhost:8080/api/sync/organization-item/incremental
+-- MaterialsInventoryRequest/Detail：主表和明细各自 Id 高水位。
+-- curl -X POST http://localhost:8080/api/sync/materials-inventory-request/incremental
+
+-- 6) 全部原始表增量同步：
+-- curl -X POST http://localhost:8080/api/sync/incremental
