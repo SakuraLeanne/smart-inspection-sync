@@ -3,6 +3,7 @@ package com.example.smartinspection.repository;
 import com.example.smartinspection.domain.MaterialsInventoryRequestRow;
 import com.example.smartinspection.service.SyncDateConvertService;
 import java.sql.Date;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,34 +24,45 @@ public class SqlServerMaterialsInventoryRequestReader {
 
     public List<MaterialsInventoryRequestRow> readByIdGreaterThan(int lastMaxId, int limit) {
         String sql = "SELECT TOP (?) " + COLUMNS + " FROM dbo.MaterialsInventoryRequest WHERE Id > ? ORDER BY Id ASC";
-        return sqlServerJdbcTemplate.query(sql, (rs, rn) -> {
-            MaterialsInventoryRequestRow row = new MaterialsInventoryRequestRow();
-            row.setId(rs.getInt("Id"));
-            row.setSupplierId((Integer) rs.getObject("SupplierId"));
-            row.setRequestType(rs.getString("RequestType"));
-            row.setBillNo(rs.getString("BillNo"));
-            row.setShipmentNumber(rs.getString("ShipmentNumber"));
-            row.setTotalCount(rs.getBigDecimal("TotalCount"));
-            row.setRequestDate(convertService.toLocalDateTime(rs.getTimestamp("RequestDate")));
-            row.setRequestUserId((Integer) rs.getObject("RequestUserId"));
-            row.setRelatedCustomerId((Integer) rs.getObject("RelatedCustomerId"));
-            row.setStatus(rs.getInt("Status"));
-            row.setConfirmDate(convertService.toLocalDateTime(rs.getTimestamp("ConfirmDate")));
-            row.setConfirmUserId((Integer) rs.getObject("ConfirmUserId"));
-            row.setPaymentDate(convertService.toLocalDateTime(rs.getTimestamp("PaymentDate")));
-            row.setRelatedUserId((Integer) rs.getObject("RelatedUserId"));
-            row.setNeedPaymentMoney(rs.getBigDecimal("NeedPaymentMoney"));
-            row.setRemark(rs.getString("Remark"));
-            row.setOrganizationItemId(rs.getInt("OrganizationItemId"));
-            row.setTotalTaxation(rs.getBigDecimal("TotalTaxation"));
-            row.setTotalPreTaxAmount(rs.getBigDecimal("TotalPreTaxAmount"));
-            row.setDiscountedPrice(rs.getBigDecimal("DiscountedPrice"));
-            row.setRepairBillNo(rs.getString("RepairBillNo"));
-            row.setIsUpgradeData(toBoolean(rs.getObject("IsUpgradeData")));
-            row.setInventoryBegnDate(toLocalDate(rs.getDate("InventoryBegnDate")));
-            row.setInventoryEndDate(toLocalDate(rs.getDate("InventoryEndDate")));
-            return row;
-        }, limit, lastMaxId);
+        return sqlServerJdbcTemplate.query(sql, (rs, rn) -> mapRow(rs), limit, lastMaxId);
+    }
+
+    /**
+     * MaterialsInventoryRequest 源表无更新时间，增量方案采用“Id 高水位 + RequestDate 回溯”。
+     * 该查询用于重刷近期申请单，覆盖审核、付款、状态等在申请后发生的变化。
+     */
+    public List<MaterialsInventoryRequestRow> readByRequestDateSince(LocalDateTime since, int lastId, int limit) {
+        String sql = "SELECT TOP (?) " + COLUMNS + " FROM dbo.MaterialsInventoryRequest WHERE RequestDate >= ? AND Id > ? ORDER BY Id ASC";
+        return sqlServerJdbcTemplate.query(sql, (rs, rn) -> mapRow(rs), limit, java.sql.Timestamp.valueOf(since), lastId);
+    }
+
+    private MaterialsInventoryRequestRow mapRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        MaterialsInventoryRequestRow row = new MaterialsInventoryRequestRow();
+        row.setId(rs.getInt("Id"));
+        row.setSupplierId((Integer) rs.getObject("SupplierId"));
+        row.setRequestType(rs.getString("RequestType"));
+        row.setBillNo(rs.getString("BillNo"));
+        row.setShipmentNumber(rs.getString("ShipmentNumber"));
+        row.setTotalCount(rs.getBigDecimal("TotalCount"));
+        row.setRequestDate(convertService.toLocalDateTime(rs.getTimestamp("RequestDate")));
+        row.setRequestUserId((Integer) rs.getObject("RequestUserId"));
+        row.setRelatedCustomerId((Integer) rs.getObject("RelatedCustomerId"));
+        row.setStatus(rs.getInt("Status"));
+        row.setConfirmDate(convertService.toLocalDateTime(rs.getTimestamp("ConfirmDate")));
+        row.setConfirmUserId((Integer) rs.getObject("ConfirmUserId"));
+        row.setPaymentDate(convertService.toLocalDateTime(rs.getTimestamp("PaymentDate")));
+        row.setRelatedUserId((Integer) rs.getObject("RelatedUserId"));
+        row.setNeedPaymentMoney(rs.getBigDecimal("NeedPaymentMoney"));
+        row.setRemark(rs.getString("Remark"));
+        row.setOrganizationItemId(rs.getInt("OrganizationItemId"));
+        row.setTotalTaxation(rs.getBigDecimal("TotalTaxation"));
+        row.setTotalPreTaxAmount(rs.getBigDecimal("TotalPreTaxAmount"));
+        row.setDiscountedPrice(rs.getBigDecimal("DiscountedPrice"));
+        row.setRepairBillNo(rs.getString("RepairBillNo"));
+        row.setIsUpgradeData(toBoolean(rs.getObject("IsUpgradeData")));
+        row.setInventoryBegnDate(toLocalDate(rs.getDate("InventoryBegnDate")));
+        row.setInventoryEndDate(toLocalDate(rs.getDate("InventoryEndDate")));
+        return row;
     }
 
     private Boolean toBoolean(Object value) {
