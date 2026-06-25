@@ -27,15 +27,6 @@ public class SqlServerMaterialsInventoryRequestReader {
         return sqlServerJdbcTemplate.query(sql, (rs, rn) -> mapRow(rs), limit, lastMaxId);
     }
 
-    /**
-     * MaterialsInventoryRequest 源表无更新时间，增量方案采用“Id 高水位 + RequestDate 回溯”。
-     * 该查询用于重刷近期申请单，覆盖审核、付款、状态等在申请后发生的变化。
-     */
-    public List<MaterialsInventoryRequestRow> readByRequestDateSince(LocalDateTime since, int lastId, int limit) {
-        String sql = "SELECT TOP (?) " + COLUMNS + " FROM dbo.MaterialsInventoryRequest WHERE RequestDate >= ? AND Id > ? ORDER BY Id ASC";
-        return sqlServerJdbcTemplate.query(sql, (rs, rn) -> mapRow(rs), limit, java.sql.Timestamp.valueOf(since), lastId);
-    }
-
     private MaterialsInventoryRequestRow mapRow(java.sql.ResultSet rs) throws java.sql.SQLException {
         MaterialsInventoryRequestRow row = new MaterialsInventoryRequestRow();
         row.setId(rs.getInt("Id"));

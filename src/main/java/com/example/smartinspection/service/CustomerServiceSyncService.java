@@ -66,10 +66,8 @@ public class CustomerServiceSyncService {
     }
 
     /**
-     * 增量方案：CustomerService 使用“Id 高水位 + CreateTime 回溯窗口”。
-     * 1) Id 高水位负责捕获新创建的工单；
-     * 2) CreateTime 回溯负责重刷近期工单，覆盖状态、评价、投诉等后续变化；
-     * 3) CreateTime 不是更新时间，超出回溯窗口的历史工单修改需要后续补偿或扩大窗口。
+     * 增量方案：仅按 CustomerService.Id 高水位同步新增工单。
+     * 已同步工单即使源端发生状态、评价、投诉等后续变化，也不做回刷或覆盖。
      */
     public void syncIncremental() {
         String task = "sync_customer_service_incremental";
@@ -79,8 +77,8 @@ public class CustomerServiceSyncService {
         int write = 0;
         try {
             int last = checkpointRepository.getOrDefault(task, "CustomerService", "ID").getLastId();
-            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=ID_WATERMARK_CREATE_TIME_LOOKBACK, lastId={}, createTimeLookbackDays={}",
-                    task, batchNo, last, createTimeLookbackDays);
+            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=ID_WATERMARK_ONLY, lastId={}",
+                    task, batchNo, last);
             while (true) {
                 List<CustomerServiceRow> rows = reader.readByIdGreaterThan(last, batchSize);
                 if (rows.isEmpty()) {
@@ -92,23 +90,9 @@ public class CustomerServiceSyncService {
                 last = Math.max(last, rows.get(rows.size() - 1).getId());
                 checkpointRepository.save(task, "CustomerService", "ID", last, null);
             }
-
-            LocalDateTime since = LocalDateTime.now().minusDays(createTimeLookbackDays);
-            LOGGER.info("Replay customer service lookback task={}, batchNo={}, since={}", task, batchNo, since);
-            int lookbackLastId = 0;
-            while (true) {
-                List<CustomerServiceRow> rows = reader.readByCreateTimeSince(since, lookbackLastId, batchSize);
-                if (rows.isEmpty()) {
-                    break;
-                }
-                read += rows.size();
-                writer.upsertBatch(rows, batchNo);
-                write += rows.size();
-                lookbackLastId = Math.max(lookbackLastId, rows.get(rows.size() - 1).getId());
-            }
             log.finishSuccess(logId, read, write);
-            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalLastId={}, lookbackLastId={}",
-                    task, batchNo, read, write, last, lookbackLastId);
+            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalLastId={}",
+                    task, batchNo, read, write, last);
         } catch (RuntimeException e) {
             log.finishFail(logId, read, write, e.getMessage());
             LOGGER.error("Finish incremental sync task={}, batchNo={}, status=FAILED, read={}, write={}",

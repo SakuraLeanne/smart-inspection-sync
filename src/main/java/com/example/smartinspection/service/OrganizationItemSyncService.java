@@ -64,9 +64,8 @@ public class OrganizationItemSyncService {
     }
 
     /**
-     * 增量方案：OrganizationItem 分两条通道同步。
-     * 1) UpdateTime 非空：使用“UpdateTime + Id”组合水位，覆盖组织项名称、状态、层级等修改；
-     * 2) UpdateTime 为空：只能用 Id 高水位捕获新增，老数据修改需要定期分段重刷兜底。
+     * 增量方案：仅按 OrganizationItem.Id 高水位同步新增组织项。
+     * 已同步组织项即使源端 UpdateTime 变化或字段被修改，也不做回刷或覆盖。
      */
     public void syncIncremental() {
         String task = "sync_organization_item_incremental";
@@ -74,45 +73,24 @@ public class OrganizationItemSyncService {
         long logId = log.start(task, batchNo, "INCREMENTAL");
         int read = 0;
         int write = 0;
+        int last = checkpointRepository.getOrDefault(task, "OrganizationItem", "ID").getLastId();
         try {
-            SyncCheckpoint updateCheckpoint = checkpointRepository.getOrDefault(task, "OrganizationItem", "UPDATE_TIME_ID");
-            LocalDateTime lastTime = updateCheckpoint.getLastTime() == null
-                    ? LocalDateTime.of(1900, 1, 1, 0, 0)
-                    : updateCheckpoint.getLastTime();
-            int lastUpdateId = updateCheckpoint.getLastId() == null ? 0 : updateCheckpoint.getLastId();
-            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=UPDATE_TIME_ID_AND_NULL_UPDATE_TIME_ID, lastUpdateTime={}, lastUpdateId={}",
-                    task, batchNo, lastTime, lastUpdateId);
+            LOGGER.info("Start incremental sync task={}, batchNo={}, strategy=ID_WATERMARK_ONLY, lastId={}",
+                    task, batchNo, last);
             while (true) {
-                List<OrganizationItemRow> rows = reader.readByUpdateTimeAfter(lastTime, lastUpdateId, batchSize);
+                List<OrganizationItemRow> rows = reader.readByIdGreaterThan(last, batchSize);
                 if (rows.isEmpty()) {
                     break;
                 }
                 read += rows.size();
                 writer.upsertBatch(rows, batchNo);
                 write += rows.size();
-                OrganizationItemRow lastRow = rows.get(rows.size() - 1);
-                lastTime = lastRow.getUpdateTime();
-                lastUpdateId = lastRow.getId();
-                checkpointRepository.save(task, "OrganizationItem", "UPDATE_TIME_ID", lastUpdateId, lastTime);
-            }
-
-            int lastNullId = checkpointRepository.getOrDefault(task, "OrganizationItem", "NULL_UPDATE_TIME_ID").getLastId();
-            LOGGER.info("Replay null UpdateTime organization item task={}, batchNo={}, lastNullUpdateTimeId={}",
-                    task, batchNo, lastNullId);
-            while (true) {
-                List<OrganizationItemRow> rows = reader.readNullUpdateTimeByIdGreaterThan(lastNullId, batchSize);
-                if (rows.isEmpty()) {
-                    break;
-                }
-                read += rows.size();
-                writer.upsertBatch(rows, batchNo);
-                write += rows.size();
-                lastNullId = Math.max(lastNullId, rows.get(rows.size() - 1).getId());
-                checkpointRepository.save(task, "OrganizationItem", "NULL_UPDATE_TIME_ID", lastNullId, null);
+                last = Math.max(last, rows.get(rows.size() - 1).getId());
+                checkpointRepository.save(task, "OrganizationItem", "ID", last, null);
             }
             log.finishSuccess(logId, read, write);
-            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalUpdateTime={}, finalUpdateId={}, finalNullUpdateTimeId={}",
-                    task, batchNo, read, write, lastTime, lastUpdateId, lastNullId);
+            LOGGER.info("Finish incremental sync task={}, batchNo={}, status=SUCCESS, read={}, write={}, finalLastId={}",
+                    task, batchNo, read, write, last);
         } catch (RuntimeException e) {
             log.finishFail(logId, read, write, e.getMessage());
             LOGGER.error("Finish incremental sync task={}, batchNo={}, status=FAILED, read={}, write={}",

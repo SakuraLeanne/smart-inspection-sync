@@ -27,20 +27,6 @@ public class SqlServerMaterialsInventoryRequestDetailReader {
         return sqlServerJdbcTemplate.query(sql, (rs, rn) -> mapRow(rs), limit, lastMaxId);
     }
 
-    /**
-     * 明细表没有更新时间；物料主表被 Id 增量或 RequestDate 回溯命中后，
-     * 需要按主表 Id 重刷其所有明细，覆盖老明细被修改但 Id 未变化的场景。
-     */
-    public List<MaterialsInventoryRequestDetailRow> readByRequestIds(List<Integer> requestIds) {
-        if (requestIds == null || requestIds.isEmpty()) {
-            return Collections.emptyList();
-        }
-        String placeholders = requestIds.stream().map(id -> "?").collect(Collectors.joining(","));
-        String sql = "SELECT " + COLUMNS + " FROM dbo.MaterialsInventoryRequestDetail WHERE MaterialsInventoryRequestId IN ("
-                + placeholders + ") ORDER BY MaterialsInventoryRequestId ASC, Id ASC";
-        return sqlServerJdbcTemplate.query(sql, requestIds.toArray(), (rs, rn) -> mapRow(rs));
-    }
-
     private MaterialsInventoryRequestDetailRow mapRow(java.sql.ResultSet rs) throws java.sql.SQLException {
         MaterialsInventoryRequestDetailRow row = new MaterialsInventoryRequestDetailRow();
         row.setId(rs.getInt("Id"));

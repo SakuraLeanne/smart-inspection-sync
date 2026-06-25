@@ -15,13 +15,14 @@
 -- 4) 执行 verify_sync.sql 查看原始同步表行数、最大 source_id 与最近任务日志。
 
 -- 5) 单表增量同步：
--- CustomerService：Id 高水位 + CreateTime 回溯窗口。
+-- 增量同步仅同步源表 Id 大于上次成功水位的新增数据；已同步数据不回刷、不覆盖。
+-- CustomerService：Id 高水位。
 -- curl -X POST http://localhost:8080/api/sync/customer-service/incremental
 -- CustomerServiceHistory：Id 高水位。
 -- curl -X POST http://localhost:8080/api/sync/customer-service-history/incremental
--- OrganizationItem：UpdateTime 非空使用 UpdateTime+Id，UpdateTime 为空使用 Id 高水位。
+-- OrganizationItem：Id 高水位。
 -- curl -X POST http://localhost:8080/api/sync/organization-item/incremental
--- MaterialsInventoryRequest/Detail：主表 Id 高水位 + RequestDate 回溯；明细 Id 高水位 + 跟随主表 Id 重刷。
+-- MaterialsInventoryRequest/Detail：主表和明细各自 Id 高水位。
 -- curl -X POST http://localhost:8080/api/sync/materials-inventory-request/incremental
 
 -- 6) 全部原始表增量同步：
