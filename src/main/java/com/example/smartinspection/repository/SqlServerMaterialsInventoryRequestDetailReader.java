@@ -2,7 +2,9 @@ package com.example.smartinspection.repository;
 
 import com.example.smartinspection.domain.MaterialsInventoryRequestDetailRow;
 import com.example.smartinspection.service.SyncDateConvertService;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;

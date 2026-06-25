@@ -1,11 +1,13 @@
 package com.example.smartinspection.service;
 
 import com.example.smartinspection.domain.OrganizationItemRow;
+import com.example.smartinspection.domain.SyncCheckpoint;
 import com.example.smartinspection.repository.MysqlOrganizationItemWriter;
 import com.example.smartinspection.repository.SqlServerOrganizationItemReader;
 import com.example.smartinspection.repository.SyncCheckpointRepository;
 import com.example.smartinspection.repository.SyncTaskLogRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 

@@ -20,6 +20,11 @@ sync:
     materials-inventory-request-detail: 500
   throttle-sleep-ms:
     materials-inventory-request: 100
+  incremental:
+    customer-service:
+      create-time-lookback-days: 14
+    materials-inventory-request:
+      request-date-lookback-days: 30
   sqlserver:
     use-row-number-pagination: false
 

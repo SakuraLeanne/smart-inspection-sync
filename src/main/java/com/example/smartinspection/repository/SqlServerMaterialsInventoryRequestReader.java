@@ -3,6 +3,7 @@ package com.example.smartinspection.repository;
 import com.example.smartinspection.domain.MaterialsInventoryRequestRow;
 import com.example.smartinspection.service.SyncDateConvertService;
 import java.sql.Date;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;

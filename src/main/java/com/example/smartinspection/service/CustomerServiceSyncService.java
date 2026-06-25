@@ -6,6 +6,7 @@ import com.example.smartinspection.repository.SqlServerCustomerServiceReader;
 import com.example.smartinspection.repository.SyncCheckpointRepository;
 import com.example.smartinspection.repository.SyncTaskLogRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,6 +26,9 @@ public class CustomerServiceSyncService {
 
     @Value("${sync.batch-size.customer-service:3000}")
     private int batchSize;
+
+    @Value("${sync.incremental.customer-service.create-time-lookback-days:14}")
+    private int createTimeLookbackDays;
 
     public CustomerServiceSyncService(SqlServerCustomerServiceReader reader,
                                       MysqlCustomerServiceWriter writer,

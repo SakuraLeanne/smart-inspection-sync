@@ -9,7 +9,12 @@ import com.example.smartinspection.repository.SqlServerMaterialsInventoryRequest
 import com.example.smartinspection.repository.SyncCheckpointRepository;
 import com.example.smartinspection.repository.SyncTaskLogRepository;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +40,9 @@ public class MaterialsInventoryRequestFullSyncService {
 
     @Value("${sync.throttle-sleep-ms.materials-inventory-request:100}")
     private long sleepMillisAfterBatch;
+
+    @Value("${sync.incremental.materials-inventory-request.request-date-lookback-days:30}")
+    private int requestDateLookbackDays;
 
     public MaterialsInventoryRequestFullSyncService(SqlServerMaterialsInventoryRequestReader requestReader,
                                                     MysqlMaterialsInventoryRequestWriter requestWriter,
